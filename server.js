@@ -4,7 +4,6 @@ const path = require('path');
 const WebSocket = require('ws');
 const os = require('os');
 
-/* ── helpers ── */
 function getLocalIP() {
   const ifaces = os.networkInterfaces();
   for (const n of Object.keys(ifaces))
@@ -13,22 +12,29 @@ function getLocalIP() {
   return 'localhost';
 }
 
-const PORT = 3001;
+const PORT     = process.env.PORT || 3001;
 const LOCAL_IP = getLocalIP();
+const SCORES_FILE = path.join(__dirname, 'scores.json');
 
-/* ── state ── */
+/* ── 점수 파일 ── */
+function loadScores() {
+  try { return JSON.parse(fs.readFileSync(SCORES_FILE, 'utf8')); }
+  catch { return []; }
+}
+function saveScores(arr) {
+  try { fs.writeFileSync(SCORES_FILE, JSON.stringify(arr)); } catch {}
+}
+
+/* ── 멀티 방 상태 ── */
 let idCounter = 0;
-const clients = {};   // id → ws
-const players = {};   // id → player
-
+const clients = {};
+const players = {};
 const room = { phase: 'lobby', mode: 'ffa', hostId: null };
-
 const MODE_MIN = { ffa: 2, '1v1': 2, '2v2': 4, '4v4': 8 };
 const MODE_MAX = { ffa: 8, '1v1': 2, '2v2': 4, '4v4': 8 };
-
 function newId() { return `p${++idCounter}`; }
 
-/* ── comms ── */
+/* ── 통신 ── */
 function send(id, msg) {
   const ws = clients[id];
   if (ws?.readyState === WebSocket.OPEN) ws.send(JSON.stringify(msg));
@@ -44,7 +50,7 @@ function broadcastExcept(id, msg) {
   });
 }
 
-/* ── player list ── */
+/* ── 플레이어 목록 ── */
 function playerList() {
   return Object.entries(players).map(([id, p]) => ({
     id, name: p.name, ready: p.ready, alive: p.alive,
@@ -52,52 +58,36 @@ function playerList() {
     score: p.score, lines: p.lines, level: p.level, dead: p.dead,
   }));
 }
-
 function broadcastLobby() {
   broadcastAll({ type: 'lobby', players: playerList(), hostId: room.hostId, mode: room.mode, phase: room.phase });
 }
 
-/* ── team assignment ── */
+/* ── 팀 배정 ── */
 function assignTeams() {
   const ids = Object.keys(players);
-  if (room.mode === 'ffa') {
-    ids.forEach(id => { players[id].team = -1; });
-  } else if (room.mode === '1v1') {
-    ids.slice(0,1).forEach(id => { players[id].team = 0; });
-    ids.slice(1,2).forEach(id => { players[id].team = 1; });
-  } else if (room.mode === '2v2') {
-    ids.slice(0,2).forEach(id => { players[id].team = 0; });
-    ids.slice(2,4).forEach(id => { players[id].team = 1; });
-  } else if (room.mode === '4v4') {
-    ids.slice(0,4).forEach(id => { players[id].team = 0; });
-    ids.slice(4,8).forEach(id => { players[id].team = 1; });
-  }
+  if (room.mode === 'ffa') ids.forEach(id => { players[id].team = -1; });
+  else if (room.mode === '1v1') { ids.slice(0,1).forEach(id=>{players[id].team=0;}); ids.slice(1,2).forEach(id=>{players[id].team=1;}); }
+  else if (room.mode === '2v2') { ids.slice(0,2).forEach(id=>{players[id].team=0;}); ids.slice(2,4).forEach(id=>{players[id].team=1;}); }
+  else if (room.mode === '4v4') { ids.slice(0,4).forEach(id=>{players[id].team=0;}); ids.slice(4,8).forEach(id=>{players[id].team=1;}); }
 }
 
-/* ── attack routing ── */
+/* ── 공격 라우팅 ── */
 function getTargets(fromId) {
-  const from = players[fromId];
-  if (!from) return [];
-  if (room.mode === 'ffa' || room.mode === '1v1') {
+  const from = players[fromId]; if (!from) return [];
+  if (room.mode === 'ffa' || room.mode === '1v1')
     return Object.keys(players).filter(id => id !== fromId && players[id]?.alive);
-  }
-  // team modes: enemies only
   return Object.keys(players).filter(id =>
-    id !== fromId && players[id]?.alive && players[id]?.team !== from.team
-  );
+    id !== fromId && players[id]?.alive && players[id]?.team !== from.team);
 }
-
 function pickTarget(fromId) {
-  const targets = getTargets(fromId);
-  if (targets.length === 0) return null;
-  return targets[Math.floor(Math.random() * targets.length)];
+  const t = getTargets(fromId);
+  return t.length ? t[Math.floor(Math.random() * t.length)] : null;
 }
 
-/* ── win check ── */
+/* ── 승리 판정 ── */
 function checkWin() {
   if (room.phase !== 'playing') return;
-  const alive = Object.entries(players).filter(([, p]) => p.alive);
-
+  const alive = Object.entries(players).filter(([,p]) => p.alive);
   if (room.mode === 'ffa' || room.mode === '1v1') {
     if (alive.length <= 1) {
       room.phase = 'ended';
@@ -105,18 +95,67 @@ function checkWin() {
       broadcastAll({ type: 'game_over', winnerId: w?.[0], winnerName: w?.[1]?.name, winnerTeam: -1, scores: playerList() });
     }
   } else {
-    const alive0 = alive.filter(([,p]) => p.team === 0).length;
-    const alive1 = alive.filter(([,p]) => p.team === 1).length;
-    if (alive0 === 0 || alive1 === 0) {
+    const a0 = alive.filter(([,p])=>p.team===0).length;
+    const a1 = alive.filter(([,p])=>p.team===1).length;
+    if (a0 === 0 || a1 === 0) {
       room.phase = 'ended';
-      const winTeam = alive0 > 0 ? 0 : 1;
-      broadcastAll({ type: 'game_over', winnerId: null, winnerName: null, winnerTeam: winTeam, scores: playerList() });
+      broadcastAll({ type: 'game_over', winnerId: null, winnerName: null, winnerTeam: a0 > 0 ? 0 : 1, scores: playerList() });
     }
   }
 }
 
-/* ── HTTP ── */
+/* ════════════════════════════════
+   HTTP 서버 (REST API + HTML 서빙)
+════════════════════════════════ */
 const server = http.createServer((req, res) => {
+  // CORS
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
+
+  /* GET /scores → 상위 50개 반환 */
+  if (req.method === 'GET' && req.url === '/scores') {
+    const scores = loadScores().slice(0, 50);
+    res.writeHead(200, { 'Content-Type': 'application/json' });
+    res.end(JSON.stringify(scores));
+    return;
+  }
+
+  /* POST /scores → 점수 등록 */
+  if (req.method === 'POST' && req.url === '/scores') {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', () => {
+      try {
+        const e = JSON.parse(body);
+        const name  = String(e.name  || '익명').slice(0, 12);
+        const score = Math.min(Math.max(0, parseInt(e.score)  || 0), 9999999);
+        const lines = Math.min(Math.max(0, parseInt(e.lines)  || 0), 9999);
+        const level = Math.min(Math.max(1, parseInt(e.level)  || 1), 100);
+
+        const now    = new Date();
+        const dateStr = `${now.getFullYear()}.${now.getMonth()+1}.${now.getDate()}`;
+        const uid    = Date.now() + Math.random(); // 유일 식별자
+
+        const scores = loadScores();
+        scores.push({ name, score, lines, level, date: dateStr, uid });
+        scores.sort((a, b) => b.score - a.score);
+        const top = scores.slice(0, 100);
+        saveScores(top);
+
+        const rank = top.findIndex(s => s.uid === uid) + 1;
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ ok: true, rank }));
+      } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end('{"ok":false}');
+      }
+    });
+    return;
+  }
+
+  /* 기본: HTML 서빙 */
   fs.readFile(path.join(__dirname, 'tetris.html'), (err, data) => {
     if (err) { res.writeHead(404); res.end('tetris.html not found'); return; }
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -124,7 +163,9 @@ const server = http.createServer((req, res) => {
   });
 });
 
-/* ── WebSocket ── */
+/* ════════════════════════════════
+   WebSocket
+════════════════════════════════ */
 const wss = new WebSocket.Server({ server });
 
 wss.on('connection', ws => {
@@ -139,45 +180,32 @@ wss.on('connection', ws => {
 
   ws.on('message', raw => {
     let msg; try { msg = JSON.parse(raw); } catch { return; }
-    const p = players[id];
-    if (!p) return;
+    const p = players[id]; if (!p) return;
 
     switch (msg.type) {
-
       case 'set_name':
-        p.name = String(msg.name).slice(0, 12);
-        broadcastLobby();
-        break;
+        p.name = String(msg.name).slice(0, 12); broadcastLobby(); break;
 
       case 'set_mode':
         if (id !== room.hostId || room.phase === 'playing') break;
-        if (room.phase === 'ended') room.phase = 'lobby'; // ended → lobby로 자동 전환
-        if (MODE_MIN[msg.mode]) {
-          room.mode = msg.mode;
-          broadcastLobby();
-        }
+        if (room.phase === 'ended') room.phase = 'lobby';
+        if (MODE_MIN[msg.mode]) { room.mode = msg.mode; broadcastLobby(); }
         break;
 
-      case 'swap_team': {
+      case 'swap_team':
         if (room.phase === 'playing') break;
         if (room.phase === 'ended') room.phase = 'lobby';
-        const cur = p.team;
-        if (cur === 0) p.team = 1;
-        else if (cur === 1) p.team = 0;
-        broadcastLobby();
-        break;
-      }
+        if (p.team === 0) p.team = 1; else if (p.team === 1) p.team = 0;
+        broadcastLobby(); break;
 
       case 'set_ready':
         if (room.phase === 'playing') break;
         if (room.phase === 'ended') room.phase = 'lobby';
-        p.ready = !!msg.ready;
-        broadcastLobby();
-        break;
+        p.ready = !!msg.ready; broadcastLobby(); break;
 
       case 'start_game': {
         if (id !== room.hostId || room.phase === 'playing') break;
-        if (room.phase === 'ended') room.phase = 'lobby'; // 자동 리셋
+        if (room.phase === 'ended') room.phase = 'lobby';
         const cnt = Object.keys(players).length;
         const min = MODE_MIN[room.mode] || 2;
         const max = MODE_MAX[room.mode] || 8;
@@ -185,37 +213,22 @@ wss.on('connection', ws => {
         if (cnt > max) { send(id, { type: 'error', msg: `이 모드는 최대 ${max}명이에요!` }); break; }
         assignTeams();
         room.phase = 'playing';
-        Object.values(players).forEach(p => {
-          p.alive = true; p.dead = false; p.score = 0; p.lines = 0; p.level = 1;
-        });
+        Object.values(players).forEach(p => { p.alive=true; p.dead=false; p.score=0; p.lines=0; p.level=1; });
         broadcastAll({ type: 'game_start', mode: room.mode, players: playerList() });
         break;
       }
 
       case 'board_update':
-        p.score = msg.score || 0;
-        p.lines = msg.lines || 0;
-        p.level = msg.level || 1;
+        p.score = msg.score||0; p.lines = msg.lines||0; p.level = msg.level||1;
         broadcastExcept(id, { type: 'player_board', id, board: msg.board, score: p.score, lines: p.lines, level: p.level, name: p.name, team: p.team });
         break;
 
       case 'attack': {
         if (room.phase !== 'playing' || !p.alive) break;
-        const lines = Math.max(0, Math.min(12, msg.lines || 0));
-        if (lines === 0) break;
-
-        if (room.mode === 'ffa') {
-          // FFA: send to random target
-          const target = pickTarget(id);
-          if (target) {
-            send(target, { type: 'garbage', lines, fromName: p.name });
-            send(id, { type: 'attack_sent', lines, toName: players[target]?.name });
-          }
-        } else {
-          // Team/1v1: send to all enemies (split) or random
-          const enemies = getTargets(id);
-          if (enemies.length === 0) break;
-          const target = enemies[Math.floor(Math.random() * enemies.length)];
+        const lines = Math.max(0, Math.min(12, msg.lines||0));
+        if (!lines) break;
+        const target = pickTarget(id);
+        if (target) {
           send(target, { type: 'garbage', lines, fromName: p.name });
           send(id, { type: 'attack_sent', lines, toName: players[target]?.name });
         }
@@ -224,47 +237,29 @@ wss.on('connection', ws => {
 
       case 'player_dead':
         if (!p.alive) break;
-        p.alive = false;
-        p.dead = true;
-        p.score = msg.score || p.score;
+        p.alive = false; p.dead = true; p.score = msg.score||p.score;
         broadcastAll({ type: 'player_died', id, name: p.name, score: p.score });
-        broadcastLobby();
-        checkWin();
-        break;
+        broadcastLobby(); checkWin(); break;
 
       case 'restart':
         if (id !== room.hostId) break;
         room.phase = 'lobby';
-        Object.values(players).forEach(p => { p.ready = false; p.alive = false; p.dead = false; });
-        broadcastAll({ type: 'restart' });
-        broadcastLobby();
-        break;
+        Object.values(players).forEach(p => { p.ready=false; p.alive=false; p.dead=false; });
+        broadcastAll({ type: 'restart' }); broadcastLobby(); break;
     }
   });
 
   ws.on('close', () => {
-    const leavingPlayer = players[id];
-    delete clients[id];
-    delete players[id];
-
-    // 게임 중 나가면 player_died 브로드캐스트 → 미니보드 제거
-    if (room.phase === 'playing' && leavingPlayer?.alive) {
-      broadcastAll({ type: 'player_died', id, name: leavingPlayer.name, score: leavingPlayer.score });
-    }
-
-    // 방장이 나가면 다음 사람에게 방장 넘기기
+    const lp = players[id];
+    delete clients[id]; delete players[id];
+    if (room.phase === 'playing' && lp?.alive)
+      broadcastAll({ type: 'player_died', id, name: lp.name, score: lp.score });
     if (room.hostId === id) {
       const rem = Object.keys(players);
       room.hostId = rem[0] || null;
       if (room.hostId) send(room.hostId, { type: 'you_are_host' });
     }
-
-    // 모두 나가면 방 초기화
-    if (Object.keys(players).length === 0) {
-      room.phase = 'lobby';
-      room.hostId = null;
-    }
-
+    if (Object.keys(players).length === 0) { room.phase='lobby'; room.hostId=null; }
     if (room.phase === 'playing') checkWin();
     broadcastLobby();
   });
@@ -277,6 +272,6 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`║  로컬:    http://localhost:${PORT}            ║`);
   console.log(`║  네트워크: http://${LOCAL_IP}:${PORT}   ║`);
   console.log('╚══════════════════════════════════════════╝\n');
-  console.log('  모드: FFA(최대8명) / 1v1 / 2v2 / 4v4');
+  console.log('  모드: FFA / 1v1 / 2v2 / 4v4 · 연습 모드 · 랭킹 API');
   console.log('  종료: Ctrl+C\n');
 });
