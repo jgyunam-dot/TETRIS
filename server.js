@@ -13,7 +13,7 @@ function getLocalIP() {
   return 'localhost';
 }
 
-const PORT = 3001;
+const PORT = process.env.PORT || 3001;
 const LOCAL_IP = getLocalIP();
 
 /* ── state ── */
