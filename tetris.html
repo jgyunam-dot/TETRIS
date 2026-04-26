@@ -419,7 +419,9 @@ function lockPiece(){
   if(pendingGarbage>0){const ab=Math.min(pendingGarbage,cl);pendingGarbage-=ab;if(pendingGarbage>0){addGarbage(pendingGarbage);pendingGarbage=0;}updGB();}
   const atk=[0,0,1,2,4][Math.min(cl,4)];
   if(atk>0&&ws)ws.send(JSON.stringify({type:'attack',lines:atk}));
-  if(topOut||!spawn())triggerDead();
+  // isGameOver 체크: spawn() 내부에서 이미 triggerDead 호출됐을 수 있음
+  if(!isGameOver&&topOut) triggerDead();
+  else if(!isGameOver) spawn();
 }
 const LS=[0,100,300,500,800];
 function clearLines(){
@@ -645,6 +647,13 @@ function handleMsg(m){
     case 'welcome':
       myId=m.id;isHost=m.isHost;currentMode=m.mode;currentPhase=m.phase||'lobby';
       players={};m.players.forEach(p=>players[p.id]=p);
+      // 재연결 시 게임 중이었으면 강제로 로비로
+      if(isPlaying){
+        isPlaying=false;
+        if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+        stopBGM();
+      }
+      showPage('lobby');
       renderLobby(m.players);updateModeUI(m.mode);updateHostUI();
       break;
     case 'lobby':
@@ -674,13 +683,18 @@ function handleMsg(m){
     case 'player_died':markDeadMini(m.id);if(m.id!==myId)toast(`💀 ${m.name} 탈락!`);break;
     case 'game_over':
       currentPhase='ended';
-      if(rafId)cancelAnimationFrame(rafId);showWin(m);stopBGM();break;
+      isPlaying=false; // 명시적으로 false
+      if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+      showWin(m);stopBGM();break;
     case 'error':toast('⚠ '+m.msg);break;
     case 'restart':
       currentPhase='lobby';players={};
+      isPlaying=false;
+      if(rafId){cancelAnimationFrame(rafId);rafId=null;}
       document.getElementById('ov-win').classList.remove('show');
       document.getElementById('ov-dead').classList.remove('show');
-      showPage('lobby');myReady=false;
+      showPage('lobby');
+      myReady=false;
       document.getElementById('ready-btn').textContent='✔ 준비하기';
       document.getElementById('ready-btn').className='btn btn-c';
       break;
