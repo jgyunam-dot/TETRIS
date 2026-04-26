@@ -14,18 +14,65 @@ function getLocalIP() {
 
 const PORT     = process.env.PORT || 3001;
 const LOCAL_IP = getLocalIP();
-const SCORES_FILE = path.join(__dirname, 'scores.json');
+const JB_KEY   = process.env.JSONBIN_KEY || '';
+const JB_BIN   = process.env.JSONBIN_ID  || '';
+const JB_URL   = `https://api.jsonbin.io/v3/b/${JB_BIN}`;
 
-/* ── 점수 파일 ── */
-function loadScores() {
-  try { return JSON.parse(fs.readFileSync(SCORES_FILE, 'utf8')); }
+/* ════════════════════════════════
+   JSONBin 점수 저장소
+   (환경변수 없으면 로컬 파일로 fallback)
+════════════════════════════════ */
+const LOCAL_FILE = path.join(__dirname, 'scores.json');
+
+async function loadScores() {
+  // JSONBin 사용
+  if (JB_KEY && JB_BIN) {
+    try {
+      const res = await fetch(`${JB_URL}/latest`, {
+        headers: { 'X-Master-Key': JB_KEY }
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      const data = await res.json();
+      const scores = data?.record?.scores;
+      if (Array.isArray(scores)) {
+        console.log(`[JSONBin] 점수 ${scores.length}개 로드`);
+        return scores;
+      }
+    } catch (e) {
+      console.error('[JSONBin] 로드 실패:', e.message);
+    }
+  }
+  // fallback: 로컬 파일
+  try { return JSON.parse(fs.readFileSync(LOCAL_FILE, 'utf8')); }
   catch { return []; }
 }
-function saveScores(arr) {
-  try { fs.writeFileSync(SCORES_FILE, JSON.stringify(arr)); } catch {}
+
+async function saveScores(arr) {
+  // JSONBin 저장
+  if (JB_KEY && JB_BIN) {
+    try {
+      const res = await fetch(JB_URL, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Master-Key': JB_KEY
+        },
+        body: JSON.stringify({ scores: arr })
+      });
+      if (!res.ok) throw new Error(`status ${res.status}`);
+      console.log(`[JSONBin] 점수 ${arr.length}개 저장 완료`);
+      return;
+    } catch (e) {
+      console.error('[JSONBin] 저장 실패:', e.message);
+    }
+  }
+  // fallback: 로컬 파일
+  try { fs.writeFileSync(LOCAL_FILE, JSON.stringify(arr)); } catch {}
 }
 
-/* ── 멀티 방 상태 ── */
+/* ════════════════════════════════
+   멀티 방 상태
+════════════════════════════════ */
 let idCounter = 0;
 const clients = {};
 const players = {};
@@ -65,10 +112,18 @@ function broadcastLobby() {
 /* ── 팀 배정 ── */
 function assignTeams() {
   const ids = Object.keys(players);
-  if (room.mode === 'ffa') ids.forEach(id => { players[id].team = -1; });
-  else if (room.mode === '1v1') { ids.slice(0,1).forEach(id=>{players[id].team=0;}); ids.slice(1,2).forEach(id=>{players[id].team=1;}); }
-  else if (room.mode === '2v2') { ids.slice(0,2).forEach(id=>{players[id].team=0;}); ids.slice(2,4).forEach(id=>{players[id].team=1;}); }
-  else if (room.mode === '4v4') { ids.slice(0,4).forEach(id=>{players[id].team=0;}); ids.slice(4,8).forEach(id=>{players[id].team=1;}); }
+  if (room.mode === 'ffa') {
+    ids.forEach(id => { players[id].team = -1; });
+  } else if (room.mode === '1v1') {
+    ids.slice(0,1).forEach(id=>{players[id].team=0;});
+    ids.slice(1,2).forEach(id=>{players[id].team=1;});
+  } else if (room.mode === '2v2') {
+    ids.slice(0,2).forEach(id=>{players[id].team=0;});
+    ids.slice(2,4).forEach(id=>{players[id].team=1;});
+  } else if (room.mode === '4v4') {
+    ids.slice(0,4).forEach(id=>{players[id].team=0;});
+    ids.slice(4,8).forEach(id=>{players[id].team=1;});
+  }
 }
 
 /* ── 공격 라우팅 ── */
@@ -99,55 +154,58 @@ function checkWin() {
     const a1 = alive.filter(([,p])=>p.team===1).length;
     if (a0 === 0 || a1 === 0) {
       room.phase = 'ended';
-      broadcastAll({ type: 'game_over', winnerId: null, winnerName: null, winnerTeam: a0 > 0 ? 0 : 1, scores: playerList() });
+      broadcastAll({ type: 'game_over', winnerId: null, winnerName: null, winnerTeam: a0>0?0:1, scores: playerList() });
     }
   }
 }
 
 /* ════════════════════════════════
-   HTTP 서버 (REST API + HTML 서빙)
+   HTTP 서버
 ════════════════════════════════ */
 const server = http.createServer((req, res) => {
-  // CORS
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
   if (req.method === 'OPTIONS') { res.writeHead(204); res.end(); return; }
 
-  /* GET /scores → 상위 50개 반환 */
+  /* GET /scores */
   if (req.method === 'GET' && req.url === '/scores') {
-    const scores = loadScores().slice(0, 50);
-    res.writeHead(200, { 'Content-Type': 'application/json' });
-    res.end(JSON.stringify(scores));
+    loadScores().then(scores => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify(scores.slice(0, 50)));
+    }).catch(() => {
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end('[]');
+    });
     return;
   }
 
-  /* POST /scores → 점수 등록 */
+  /* POST /scores */
   if (req.method === 'POST' && req.url === '/scores') {
     let body = '';
     req.on('data', chunk => body += chunk);
-    req.on('end', () => {
+    req.on('end', async () => {
       try {
         const e = JSON.parse(body);
         const name  = String(e.name  || '익명').slice(0, 12);
-        const score = Math.min(Math.max(0, parseInt(e.score)  || 0), 9999999);
-        const lines = Math.min(Math.max(0, parseInt(e.lines)  || 0), 9999);
-        const level = Math.min(Math.max(1, parseInt(e.level)  || 1), 100);
+        const score = Math.min(Math.max(0, parseInt(e.score) || 0), 9999999);
+        const lines = Math.min(Math.max(0, parseInt(e.lines) || 0), 9999);
+        const level = Math.min(Math.max(1, parseInt(e.level) || 1), 100);
+        const now   = new Date();
+        const date  = `${now.getFullYear()}.${now.getMonth()+1}.${now.getDate()}`;
+        const uid   = `${Date.now()}_${Math.random().toString(36).slice(2)}`;
 
-        const now    = new Date();
-        const dateStr = `${now.getFullYear()}.${now.getMonth()+1}.${now.getDate()}`;
-        const uid    = Date.now() + Math.random(); // 유일 식별자
-
-        const scores = loadScores();
-        scores.push({ name, score, lines, level, date: dateStr, uid });
+        const scores = await loadScores();
+        scores.push({ name, score, lines, level, date, uid });
         scores.sort((a, b) => b.score - a.score);
         const top = scores.slice(0, 100);
-        saveScores(top);
+        await saveScores(top);
 
         const rank = top.findIndex(s => s.uid === uid) + 1;
         res.writeHead(200, { 'Content-Type': 'application/json' });
         res.end(JSON.stringify({ ok: true, rank }));
-      } catch {
+      } catch (e) {
+        console.error('점수 등록 오류:', e.message);
         res.writeHead(400, { 'Content-Type': 'application/json' });
         res.end('{"ok":false}');
       }
@@ -155,7 +213,7 @@ const server = http.createServer((req, res) => {
     return;
   }
 
-  /* 기본: HTML 서빙 */
+  /* HTML 서빙 */
   fs.readFile(path.join(__dirname, 'tetris.html'), (err, data) => {
     if (err) { res.writeHead(404); res.end('tetris.html not found'); return; }
     res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' });
@@ -272,6 +330,11 @@ server.listen(PORT, '0.0.0.0', () => {
   console.log(`║  로컬:    http://localhost:${PORT}            ║`);
   console.log(`║  네트워크: http://${LOCAL_IP}:${PORT}   ║`);
   console.log('╚══════════════════════════════════════════╝\n');
-  console.log('  모드: FFA / 1v1 / 2v2 / 4v4 · 연습 모드 · 랭킹 API');
+  if (JB_KEY && JB_BIN) {
+    console.log('  ✅ JSONBin 연동됨 → 점수 영구 저장');
+  } else {
+    console.log('  ⚠️  JSONBin 미설정 → 로컬 파일 저장 (재시작 시 초기화)');
+    console.log('     JSONBIN_KEY, JSONBIN_ID 환경변수를 설정해주세요');
+  }
   console.log('  종료: Ctrl+C\n');
 });
