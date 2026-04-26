@@ -13,7 +13,7 @@ function getLocalIP() {
   return 'localhost';
 }
 
-const PORT = process.env.PORT || 3001;
+const PORT = 3001;
 const LOCAL_IP = getLocalIP();
 
 /* ── state ── */
@@ -150,7 +150,8 @@ wss.on('connection', ws => {
         break;
 
       case 'set_mode':
-        if (id !== room.hostId || room.phase !== 'lobby') break;
+        if (id !== room.hostId || room.phase === 'playing') break;
+        if (room.phase === 'ended') room.phase = 'lobby'; // ended → lobby로 자동 전환
         if (MODE_MIN[msg.mode]) {
           room.mode = msg.mode;
           broadcastLobby();
@@ -158,7 +159,8 @@ wss.on('connection', ws => {
         break;
 
       case 'swap_team': {
-        if (room.phase !== 'lobby') break;
+        if (room.phase === 'playing') break;
+        if (room.phase === 'ended') room.phase = 'lobby';
         const cur = p.team;
         if (cur === 0) p.team = 1;
         else if (cur === 1) p.team = 0;
@@ -167,13 +169,15 @@ wss.on('connection', ws => {
       }
 
       case 'set_ready':
-        if (room.phase !== 'lobby') break;
+        if (room.phase === 'playing') break;
+        if (room.phase === 'ended') room.phase = 'lobby';
         p.ready = !!msg.ready;
         broadcastLobby();
         break;
 
       case 'start_game': {
-        if (id !== room.hostId || room.phase !== 'lobby') break;
+        if (id !== room.hostId || room.phase === 'playing') break;
+        if (room.phase === 'ended') room.phase = 'lobby'; // 자동 리셋
         const cnt = Object.keys(players).length;
         const min = MODE_MIN[room.mode] || 2;
         const max = MODE_MAX[room.mode] || 8;
@@ -239,13 +243,28 @@ wss.on('connection', ws => {
   });
 
   ws.on('close', () => {
+    const leavingPlayer = players[id];
     delete clients[id];
     delete players[id];
+
+    // 게임 중 나가면 player_died 브로드캐스트 → 미니보드 제거
+    if (room.phase === 'playing' && leavingPlayer?.alive) {
+      broadcastAll({ type: 'player_died', id, name: leavingPlayer.name, score: leavingPlayer.score });
+    }
+
+    // 방장이 나가면 다음 사람에게 방장 넘기기
     if (room.hostId === id) {
       const rem = Object.keys(players);
       room.hostId = rem[0] || null;
       if (room.hostId) send(room.hostId, { type: 'you_are_host' });
     }
+
+    // 모두 나가면 방 초기화
+    if (Object.keys(players).length === 0) {
+      room.phase = 'lobby';
+      room.hostId = null;
+    }
+
     if (room.phase === 'playing') checkWin();
     broadcastLobby();
   });
