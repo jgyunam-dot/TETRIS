@@ -104,7 +104,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
 .mc-sc{font-family:'Black Han Sans',sans-serif;font-size:.52rem;color:var(--a1)}
 .mc-dov{position:absolute;inset:0;background:rgba(8,8,21,.7);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:.58rem;color:var(--a2)}
 
-/* 터치 컨트롤 (3x2 배열) */
+/* 터치 컨트롤 (3x2 완벽 정렬) */
 #touch-ctrl{flex-shrink:0;background:rgba(8,8,21,.97);border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px;padding:8px;padding-bottom:max(8px,env(safe-area-inset-bottom));align-items:center;width:100%}
 .tc-row{display:flex;gap:6px;justify-content:center;width:100%}
 .tb{background:rgba(255,255,255,.08);border:1.5px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:manipulation;transition:background .1s;-webkit-tap-highlight-color:transparent}
@@ -509,7 +509,6 @@ function fixPageHeight(){document.getElementById('page-game').style.height=windo
 ════════════════════════════════ */
 function buildTouchCtrl(){
   const vw = window.innerWidth;
-  // 3개 버튼이 일정한 크기로 들어가도록 너비 계산 (패딩 및 간격 고려)
   const bw = Math.max(70, Math.min(120, Math.floor((vw - 30) / 3))); 
   const bh = Math.max(46, Math.min(65, Math.floor(window.innerHeight * 0.08)));
   
@@ -859,7 +858,7 @@ function buildOppBoards(pArr){
 }
 function mkMC(p,team){
   const w=document.createElement('div');w.className='mc'+(team>=0?` team${team}`:'');w.id='mc-'+p.id;
-  if(currentTarget === p.id) w.classList.add('target-active'); // 초기화 시 타겟 유지
+  if(currentTarget === p.id) w.classList.add('target-active'); 
   
   const cv=document.createElement('canvas');cv.width=COLS*MX;cv.height=ROWS*MX;cv.id='mv-'+p.id;
   const nm=document.createElement('div');nm.className='mc-nm';nm.id='mn-'+p.id;nm.textContent=p.name;
@@ -1050,7 +1049,6 @@ function handleMsg(m){
       requestAnimationFrame(()=>{
         initCanvases();
         buildOppBoards(m.players);
-        buildTargetBar(m.players);
         startTetris();
         toast('게임 시작! 🎮');
       });break;
