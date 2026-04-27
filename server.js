@@ -73,11 +73,14 @@ function broadcastLobby(room){
 
 /* ── 팀 배정 ── */
 function assignTeams(room){
-  const ids=Object.keys(room.players);
-  if(room.mode==='ffa'){ids.forEach(id=>{room.players[id].team=-1;});}
-  else if(room.mode==='1v1'){ids.slice(0,1).forEach(id=>{room.players[id].team=0;});ids.slice(1,2).forEach(id=>{room.players[id].team=1;});}
-  else if(room.mode==='2v2'){ids.slice(0,2).forEach(id=>{room.players[id].team=0;});ids.slice(2,4).forEach(id=>{room.players[id].team=1;});}
-  else if(room.mode==='4v4'){ids.slice(0,4).forEach(id=>{room.players[id].team=0;});ids.slice(4,8).forEach(id=>{room.players[id].team=1;});}
+  if(room.mode==='ffa'){
+    Object.values(room.players).forEach(p=>{p.team=-1;});
+  } else {
+    // 이미 팀이 배정된 경우 유지, 오류 값만 보정
+    Object.values(room.players).forEach(p=>{
+      if (p.team !== 0 && p.team !== 1) p.team = 0;
+    });
+  }
 }
 
 /* ── 적 목록 ── */
@@ -113,7 +116,6 @@ const server=http.createServer((req,res)=>{
     const mode=qs.get('mode')||'all';
     loadScores().then(all=>{
       let s=mode==='all'?[...all]:all.filter(x=>x.mode===mode);
-      // 스프린트는 시간 오름차순(빠를수록 1위), 나머지는 점수 내림차순
       if(mode==='sprint')s.sort((a,b)=>(a.time??9999)-(b.time??9999));
       else s.sort((a,b)=>(b.score||0)-(a.score||0));
       res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(s.slice(0,50)));
@@ -135,10 +137,8 @@ const server=http.createServer((req,res)=>{
         const uid=`${Date.now()}_${Math.random().toString(36).slice(2)}`;
         const scores=await loadScores();
         scores.push({name,score,lines,level,mode,time,date,uid});
-        // 저장 시: 스프린트는 시간순, 나머지는 점수순으로 각각 상위 100개
-        const top=scores.slice(0,400); // 여유 있게 보관
+        const top=scores.slice(0,400); 
         await saveScores(top);
-        // 같은 모드 내 순위
         let modeScores=scores.filter(s=>s.mode===mode);
         if(mode==='sprint')modeScores.sort((a,b)=>(a.time??9999)-(b.time??9999));
         else modeScores.sort((a,b)=>(b.score||0)-(a.score||0));
@@ -193,7 +193,15 @@ wss.on('connection',ws=>{
         if(rm.phase==='playing'){sendTo(id,{type:'error',msg:'이미 게임 중인 방이에요!'});break;}
         if(Object.keys(rm.players).length>=8){sendTo(id,{type:'error',msg:'방이 꽉 찼어요! (최대 8명)'});break;}
         clientRoom[id]=c;
-        rm.players[id]={name,ready:false,alive:false,dead:false,team:-1,score:0,lines:0,level:1,target:null};
+        
+        let targetTeam = -1;
+        if(rm.mode!=='ffa'){
+          const t0=Object.values(rm.players).filter(pl=>pl.team===0).length;
+          const t1=Object.values(rm.players).filter(pl=>pl.team===1).length;
+          targetTeam = t0<=t1 ? 0 : 1;
+        }
+
+        rm.players[id]={name,ready:false,alive:false,dead:false,team:targetTeam,score:0,lines:0,level:1,target:null};
         sendTo(id,{type:'room_joined',code:c,isHost:false,id,players:playerList(rm),hostId:rm.hostId,mode:rm.mode,phase:rm.phase,settings:rm.settings,chat:rm.chat.slice(-30)});
         broadcastLobby(rm);
         break;
@@ -206,7 +214,22 @@ wss.on('connection',ws=>{
       case 'set_mode':
         if(!p||id!==room.hostId||room.phase==='playing')break;
         if(room.phase==='ended')room.phase='lobby';
-        if(MODE_MIN[msg.mode]){room.mode=msg.mode;broadcastLobby(room);}break;
+        if(MODE_MIN[msg.mode]){
+          room.mode=msg.mode;
+          if(room.mode==='ffa'){
+            Object.values(room.players).forEach(pl=>{pl.team=-1;});
+          } else {
+            let tCnt=0;
+            Object.values(room.players).forEach(pl=>{
+              if(pl.team!==0 && pl.team!==1){
+                pl.team = tCnt%2;
+                tCnt++;
+              }
+            });
+          }
+          broadcastLobby(room);
+        }
+        break;
 
       case 'set_settings':{
         if(!p||id!==room.hostId||room.phase==='playing')break;
@@ -216,9 +239,9 @@ wss.on('connection',ws=>{
       }
 
       case 'swap_team':
-        if(!p||room.phase==='playing')break;
+        if(!p||room.phase==='playing'||room.mode==='ffa')break;
         if(room.phase==='ended')room.phase='lobby';
-        if(p.team===0)p.team=1;else if(p.team===1)p.team=0;
+        p.team = p.team === 0 ? 1 : 0;
         broadcastLobby(room);break;
 
       case 'set_ready':
@@ -252,11 +275,9 @@ wss.on('connection',ws=>{
       case 'attack':{
         if(!p||room.phase!=='playing'||!p.alive)break;
         let lines=Math.max(0,Math.min(20,msg.lines||0));
-        // 가비지 배율 적용
         lines=Math.max(0,Math.round(lines*room.settings.garbageMult));
         if(!lines)break;
         const enemies=getEnemies(room,id);if(!enemies.length)break;
-        // 타겟 선택: 플레이어 지정 우선, 없으면 랜덤
         let targetId=p.target;
         if(!targetId||!enemies.includes(targetId))targetId=enemies[0|Math.random()*enemies.length];
         sendTo(targetId,{type:'garbage',lines,fromName:p.name,fromId:id});
