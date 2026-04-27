@@ -176,14 +176,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
 #chat-input:focus{border-color:var(--a3)}
 /* 리더보드 */
 #ov-lb{background:rgba(8,8,21,.96);gap:8px}
-.lb-wrap{width:100%;max-width:400px;overflow-y:auto;max-height:60vh}
+.lb-wrap{width:100%;max-width:440px;overflow-y:auto;max-height:55vh}
 .lb-row{display:flex;align-items:center;gap:8px;background:rgba(255,255,255,.04);border:1px solid var(--border);border-radius:8px;padding:7px 10px;margin-bottom:4px}
 .lb-row.lb-me{border-color:var(--a3);background:rgba(78,247,201,.07)}
 .lb-rank{width:24px;text-align:center;font-size:.82rem;flex-shrink:0}
 .lb-name{flex:1;font-size:.82rem;font-weight:700;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
 .lb-score{font-family:'Black Han Sans',sans-serif;font-size:.88rem;color:var(--a1);flex-shrink:0}
 .lb-detail{font-size:.6rem;color:var(--muted);flex-shrink:0;text-align:right}
-.lb-empty{text-align:center;color:var(--muted);padding:28px 0;font-size:.85rem}
+.lb-tab{background:rgba(255,255,255,.06);border:1.5px solid var(--border);border-radius:7px;color:var(--muted);padding:5px 12px;font-size:.72rem;cursor:pointer;font-family:'Black Han Sans',sans-serif;letter-spacing:.04em;transition:all .15s}
+.lb-tab:active{transform:scale(.95)}
+.lb-tab.active{border-color:var(--a1);color:var(--a1);background:rgba(247,201,72,.1)}
 .lb-loading{text-align:center;color:var(--muted);padding:18px 0;animation:pulse 1s infinite}
 @keyframes pulse{0%,100%{opacity:.5}50%{opacity:1}}
 /* 알림들 */
@@ -419,9 +421,16 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
 </div>
 <!-- 리더보드 -->
 <div class="overlay" id="ov-lb">
-  <div style="display:flex;align-items:center;gap:10px;width:100%;max-width:400px;justify-content:space-between">
+  <div style="display:flex;align-items:center;gap:10px;width:100%;max-width:440px;justify-content:space-between">
     <div class="ov-title" style="font-size:clamp(1.3rem,5vw,2rem);color:var(--a1)">🏆 랭킹</div>
     <button class="btn btn-ghost btn-sm" onclick="openLeaderboard()">🔄</button>
+  </div>
+  <!-- 탭 -->
+  <div id="lb-tabs" style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center;width:100%;max-width:440px">
+    <button class="lb-tab active" data-mode="sprint" onclick="switchLbTab('sprint')">⚡ 스프린트</button>
+    <button class="lb-tab" data-mode="blitz" onclick="switchLbTab('blitz')">⏱ 블리츠</button>
+    <button class="lb-tab" data-mode="score" onclick="switchLbTab('score')">🏆 스코어</button>
+    <button class="lb-tab" data-mode="marathon" onclick="switchLbTab('marathon')">♾ 마라톤</button>
   </div>
   <div class="lb-wrap" id="lb-wrap"><div class="lb-loading">불러오는 중...</div></div>
   <button class="btn btn-ghost btn-sm" onclick="document.getElementById('ov-lb').classList.remove('show')">닫기</button>
@@ -711,10 +720,25 @@ function exitPractice(){
 async function submitScore(){
   const name=document.getElementById('pr-name').value.trim()||'익명';
   const btn=document.getElementById('pr-submit-btn');btn.disabled=true;btn.textContent='저장 중...';
-  try{const res=await fetch('/scores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify({name,score,lines,level})});const data=await res.json();
-    if(data.ok){const msg=document.getElementById('pr-rank-msg');msg.textContent=`🏆 ${data.rank}위 등록 완료!`;msg.style.display='block';btn.textContent='등록됨 ✓';sessionStorage.setItem('tetName',name);showRecords();}
-    else{btn.textContent='다시 시도';btn.disabled=false;}
-  }catch{const msg=document.getElementById('pr-rank-msg');msg.textContent='❌ 서버 연결 실패';msg.style.display='block';btn.textContent='다시 시도';btn.disabled=false;}
+  // 스프린트는 time(초) 전송, 나머지는 score
+  const modeKey=practiceGoal==='score'?'score':practiceGoal; // 'sprint','blitz','score','marathon'
+  const payload={name,score,lines,level,mode:modeKey};
+  if(modeKey==='sprint')payload.time=practiceElapsed; // 걸린 시간(초)
+  try{
+    const res=await fetch('/scores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
+    const data=await res.json();
+    if(data.ok){
+      const msg=document.getElementById('pr-rank-msg');
+      const modeName={sprint:'스프린트',blitz:'블리츠',score:'스코어 어택',marathon:'마라톤'}[modeKey]||'';
+      msg.textContent=`🏆 ${modeName} ${data.rank}위 등록 완료!`;
+      msg.style.display='block';btn.textContent='등록됨 ✓';
+      sessionStorage.setItem('tetName',name);showRecords();
+      // 해당 탭으로 랭킹 열기
+      currentLbTab=modeKey;
+    } else {btn.textContent='다시 시도';btn.disabled=false;}
+  }catch{
+    const msg=document.getElementById('pr-rank-msg');msg.textContent='❌ 서버 연결 실패';msg.style.display='block';btn.textContent='다시 시도';btn.disabled=false;
+  }
 }
 
 /* ════════════════════════════════
@@ -1033,16 +1057,56 @@ function setMult(v){if(!isHost)return;if(ws)ws.send(JSON.stringify({type:'set_se
 /* ════════════════════════════════
    리더보드
 ════════════════════════════════ */
+let currentLbTab='sprint'; // 현재 선택된 탭
+
 async function openLeaderboard(){
   document.getElementById('ov-lb').classList.add('show');
-  document.getElementById('lb-wrap').innerHTML='<div class="lb-loading">🏆 불러오는 중...</div>';
-  try{const res=await fetch('/scores');const scores=await res.json();renderLeaderboard(scores);}
-  catch{document.getElementById('lb-wrap').innerHTML='<div class="lb-empty">❌ 불러오기 실패</div>';}
+  await loadLbTab(currentLbTab);
 }
-function renderLeaderboard(scores){
-  if(!scores||scores.length===0){document.getElementById('lb-wrap').innerHTML='<div class="lb-empty">아직 기록이 없어요!</div>';return;}
-  const medals=['🥇','🥈','🥉'];const myName=sessionStorage.getItem('tetName');
-  const rows=scores.map((s,i)=>`<div class="lb-row ${s.name===myName?'lb-me':''}"><div class="lb-rank">${medals[i]||i+1}</div><div class="lb-name">${escHtml(s.name)}${s.name===myName?' ★':''}</div><div class="lb-score">${(s.score||0).toLocaleString()}</div><div class="lb-detail">${s.lines||0}L Lv${s.level||1}</div></div>`).join('');
+
+async function switchLbTab(mode){
+  currentLbTab=mode;
+  document.querySelectorAll('.lb-tab').forEach(b=>b.classList.toggle('active',b.dataset.mode===mode));
+  await loadLbTab(mode);
+}
+
+async function loadLbTab(mode){
+  document.getElementById('lb-wrap').innerHTML='<div class="lb-loading">불러오는 중...</div>';
+  try{
+    const res=await fetch(`/scores?mode=${mode}`);
+    const scores=await res.json();
+    renderLeaderboard(scores,mode);
+  }catch{
+    document.getElementById('lb-wrap').innerHTML='<div class="lb-empty">❌ 불러오기 실패</div>';
+  }
+}
+
+function fmtTime(sec){
+  if(sec==null)return'-';
+  const m=Math.floor(sec/60),s=sec%60;
+  return m>0?`${m}:${String(s).padStart(2,'0')}`:`${s}초`;
+}
+
+function renderLeaderboard(scores,mode){
+  if(!scores||scores.length===0){
+    const labels={sprint:'스프린트',blitz:'블리츠',score:'스코어 어택',marathon:'마라톤'};
+    document.getElementById('lb-wrap').innerHTML=`<div class="lb-empty">아직 ${labels[mode]||''} 기록이 없어요!<br>연습 모드에서 도전해보세요 🎮</div>`;
+    return;
+  }
+  const medals=['🥇','🥈','🥉'];
+  const myName=sessionStorage.getItem('tetName');
+  const isSprint=mode==='sprint';
+  const rows=scores.map((s,i)=>{
+    const mainVal=isSprint?`<span class="lb-score" style="color:var(--a3)">${fmtTime(s.time)}</span>`:`<span class="lb-score">${(s.score||0).toLocaleString()}</span>`;
+    const detail=isSprint?`${s.lines||0}L Lv${s.level||1}`:
+                           `${s.lines||0}L Lv${s.level||1}`;
+    return`<div class="lb-row ${s.name===myName?'lb-me':''}">
+      <div class="lb-rank">${medals[i]||i+1}</div>
+      <div class="lb-name">${escHtml(s.name)}${s.name===myName?' ★':''}</div>
+      ${mainVal}
+      <div class="lb-detail">${detail}</div>
+    </div>`;
+  }).join('');
   document.getElementById('lb-wrap').innerHTML=rows;
 }
 
