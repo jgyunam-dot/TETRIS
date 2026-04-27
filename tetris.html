@@ -117,8 +117,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .ov-title{font-family:'Black Han Sans',sans-serif;font-size:clamp(1.6rem,7vw,3.5rem);letter-spacing:.12em;text-align:center}
 .ov-sub{font-size:.85rem;color:var(--muted);text-align:center;max-width:280px}
-#ov-dead{background:rgba(8,8,21,.78);pointer-events:none}
+
+/* 🔥 버그수정: 게임오버 시 뒤에 있는 미니보드가 잘 보이도록 블러 제거 및 밝기 조절 */
+#ov-dead{background:rgba(8,8,21,.5);pointer-events:none;backdrop-filter:none;-webkit-backdrop-filter:none}
 #ov-dead>*{pointer-events:auto}
+
 .dead-title{color:var(--a2)}
 #ov-win{background:rgba(8,8,21,.93)}
 .win-title{background:linear-gradient(135deg,var(--a1),var(--a2),var(--a3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:winPop .6s cubic-bezier(.34,1.56,.64,1)}
@@ -439,7 +442,7 @@ const SHAPES=[
  [[[0,0,1],[1,1,1],[0,0,0]],[[0,1,0],[0,1,0],[0,1,1]],[[0,0,0],[1,1,1],[1,0,0]],[[1,1,0],[0,1,0],[0,1,0]]],
 ];
 const PC=[1,2,3,4,5,6,7];
-const KK={JLSTZ:{'0-1':[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]],'1-0':[[0,0],[1,0],[1,1],[0,-2],[1,-2]],'1-2':[[0,0],[1,0],[1,1],[0,-2],[1,-2]],'2-1':[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]],'2-3':[[0,0],[1,0],[1,-1],[0,2],[1,2]],'3-2':[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],'3-0':[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],'0-3':[[0,0],[1,0],[1,-1],[0,2],[1,2]]},I:{'0-1':[[0,0],[-2,0],[1,0],[-2,-1],[1,2]],'1-0':[[0,0],[2,0],[-1,0],[2,1],[-1,-2]],'1-2':[[0,0],[-1,0],[2,0],[-1,-2],[2,1]],'2-1':[[0,0],[1,0],[-2,0],[1,2],[-2,-1]],'2-3':[[0,0],[2,0],[-1,0],[2,1],[-1,-2]],'3-2':[[0,0],[-2,0],[1,0],[-2,-1],[1,2]],'3-0':[[0,0],[-1,0],[-2,0],[1,2],[-2,-1]],'0-3':[[0,0],[-1,0],[2,0],[-1,-2],[2,1]]}};
+const KK={JLSTZ:{'0-1':[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]],'1-0':[[0,0],[1,0],[1,1],[0,-2],[1,-2]],'1-2':[[0,0],[1,0],[1,1],[0,-2],[1,-2]],'2-1':[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]],'2-3':[[0,0],[1,0],[1,-1],[0,2],[1,2]],'3-2':[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],'3-0':[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],'0-3':[[0,0],[1,0],[1,-1],[0,2],[1,2]]},I:{'0-1':[[0,0],[-2,0],[1,0],[-2,-1],[1,2]],'1-0':[[0,0],[2,0],[-1,0],[2,1],[-1,-2]],'1-2':[[0,0],[-1,0],[2,0],[-1,-2],[2,1]],'2-1':[[0,0],[1,0],[-2,0],[1,2],[-2,-1]],'2-3':[[0,0],[2,0],[-1,0],[2,1],[-1,-2]],'3-2':[[0,0],[-2,0],[1,0],[-2,-1],[1,2]],'3-0':[[0,0],[1,0],[-2,0],[1,2],[-2,-1]],'0-3':[[0,0],[-1,0],[2,0],[-1,-2],[2,1]]}};
 
 /* ════ 레이아웃 ════ */
 let CELL=20,SC=12,MX=3;
@@ -770,6 +773,7 @@ function updGB(){if(isPractice)return;const bar=document.getElementById('garbage
 
 /* ════ 타겟 시스템 ════ */
 let currentTarget=null;
+/* 버그수정④: 사망 시 조용히 타겟 해제 (toast 없이) */
 function clearTargetSilent(id){
   if(currentTarget!==id)return;
   currentTarget=null;
@@ -823,6 +827,7 @@ function mkMC(p,team){
   cv.addEventListener('touchend',e=>{e.preventDefault();onTap();},{passive:false});
   return w;
 }
+/* 버그수정⑤: 테마 boardBg 사용 */
 function updateMini(id,bd,sc2,name){
   if(!specBoards[id])specBoards[id]={};
   specBoards[id]={board:bd,score:sc2,lines:specBoards[id]?.lines||0,level:specBoards[id]?.level||1,name:name||players[id]?.name||id};
