@@ -306,7 +306,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
     <button class="topbar-btn" id="home-btn" style="display:none;color:#bb88ff;border-color:#bb88ff" onclick="exitPractice()">← 홈</button>
   </div>
   <div id="game-hud">
-    <div class="hud-side"><div class="hud-lbl">HOLD</div><canvas id="hold-canvas"></canvas></div>
+    <div class="hud-side" style="cursor:pointer" id="hud-hold"><div class="hud-lbl">HOLD</div><canvas id="hold-canvas"></canvas></div>
     <div class="hud-mid">
       <div class="hstat"><div class="sval" id="sv-score">0</div><div class="slbl">SCORE</div></div>
       <div class="hstat"><div class="sval" id="sv-lines">0</div><div class="slbl">LINES</div></div>
@@ -327,6 +327,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
     <div id="opp-section"></div>
   </div>
   <div id="touch-ctrl">
+    <div class="tc-row" id="tc-row-hold" style="width:100%; justify-content:flex-end; margin-bottom:4px;"></div>
     <div class="tc-row" id="tc-row1"></div>
     <div class="tc-row" id="tc-row2"></div>
   </div>
@@ -468,7 +469,17 @@ const KK={JLSTZ:{'0-1':[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]],'1-0':[[0,0],[1,0],[1
 let CELL=20,SC=12;
 function calcLayout(){const hE=document.getElementById('game-hud');const tE=document.getElementById('touch-ctrl');const tgE=document.getElementById('target-bar');const hH=hE?hE.offsetHeight:80;const tcH=tE?tE.offsetHeight:115;const tgH=tgE&&tgE.style.display!=='none'?tgE.offsetHeight:0;const avH=window.innerHeight-hH-tcH-tgH-6;const cH=Math.floor(avH/ROWS);const cW=Math.floor((window.innerWidth-10)/COLS);CELL=Math.max(13,Math.min(30,cH,cW));SC=Math.max(10,Math.min(14,Math.floor(CELL*0.58)));}
 let mainCtx,holdCtx,nextCtx;
-function initCanvases(){buildTouchCtrl();calcLayout();const mc=document.getElementById('main-canvas');mc.width=COLS*CELL;mc.height=ROWS*CELL;mainCtx=mc.getContext('2d');const hc=document.getElementById('hold-canvas');hc.width=4*SC;hc.height=3*SC;holdCtx=hc.getContext('2d');const nc=document.getElementById('next-canvas');nc.width=4*SC;nc.height=3*SC*NEXT_SHOW;nextCtx=nc.getContext('2d');}
+function initCanvases(){
+  buildTouchCtrl();calcLayout();
+  const mc=document.getElementById('main-canvas');mc.width=COLS*CELL;mc.height=ROWS*CELL;mainCtx=mc.getContext('2d');
+  const hc=document.getElementById('hold-canvas');hc.width=4*SC;hc.height=3*SC;holdCtx=hc.getContext('2d');
+  const nc=document.getElementById('next-canvas');nc.width=4*SC;nc.height=3*SC*NEXT_SHOW;nextCtx=nc.getContext('2d');
+  
+  // HOLD 보드 터치 이벤트 등록
+  const hudHold=document.getElementById('hud-hold');
+  hudHold.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)doHold();},{passive:false});
+  hudHold.addEventListener('click',()=>{if(isPlaying)doHold();});
+}
 function fixPageHeight(){document.getElementById('page-game').style.height=window.innerHeight+'px';}
 
 /* ════════════════════════════════
@@ -476,12 +487,42 @@ function fixPageHeight(){document.getElementById('page-game').style.height=windo
 ════════════════════════════════ */
 function buildTouchCtrl(){
   const vw=window.innerWidth;const bw=Math.max(52,Math.min(80,Math.floor((vw-28)/6)));const bh=Math.max(46,Math.min(60,Math.floor(window.innerHeight*0.076)));
-  const r1=document.getElementById('tc-row1'),r2=document.getElementById('tc-row2');r1.innerHTML='';r2.innerHTML='';
-  function mkBtn(text,cls,row,fn,das){const b=document.createElement('button');b.className='tb '+cls;b.textContent=text;b.style.cssText=`width:${bw}px;height:${bh}px;font-size:${Math.round(bh*0.38)}px`;if(das){b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS(fn);},{passive:false});b.addEventListener('touchend',e=>{e.preventDefault();stopDAS();},{passive:false});b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS();},{passive:false});}else{b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying){ensureAudio();fn();}},{passive:false});}(row===1?r1:r2).appendChild(b);}
-  mkBtn('HOLD','tb-hold',1,doHold,false);mkBtn('▲▲','tb-drop',1,hardDrop,false);mkBtn('↺','',1,rotateCCW,false);mkBtn('↻','',1,rotateCW,false);
+  const rh=document.getElementById('tc-row-hold'), r1=document.getElementById('tc-row1'),r2=document.getElementById('tc-row2');
+  if(rh) rh.innerHTML=''; r1.innerHTML=''; r2.innerHTML='';
+  
+  function mkBtn(text,cls,rowEl,fn,das){
+    const b=document.createElement('button');b.className='tb '+cls;b.textContent=text;
+    b.style.cssText=`width:${bw}px;height:${bh}px;font-size:${Math.round(bh*0.38)}px`;
+    if(das){
+      b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS(fn);},{passive:false});
+      b.addEventListener('touchend',e=>{e.preventDefault();stopDAS();},{passive:false});
+      b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS();},{passive:false});
+    }else{
+      b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying){ensureAudio();fn();}},{passive:false});
+    }
+    rowEl.appendChild(b);
+  }
+  
+  // HOLD 버튼은 우측 상단 전용 열에 추가
+  if(rh) mkBtn('HOLD','tb-hold',rh,doHold,false);
+  
+  // 나머지 회전, 하드드롭 버튼 배치 (하드드롭이 제일 왼쪽으로 감)
+  mkBtn('▲▲','tb-drop',r1,hardDrop,false);
+  mkBtn('↺','',r1,rotateCCW,false);
+  mkBtn('↻','',r1,rotateCW,false);
+  
   const lw=Math.max(70,Math.min(100,Math.floor((vw-24)/4)));const lh=bh+10;
-  function mkDAS(text,fn){const b=document.createElement('button');b.className='tb';b.textContent=text;b.style.cssText=`width:${lw}px;height:${lh}px;font-size:${Math.round(lh*0.42)}px`;b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS(fn);},{passive:false});b.addEventListener('touchend',e=>{e.preventDefault();stopDAS();},{passive:false});b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS();},{passive:false});return b;}
-  const db=document.createElement('button');db.className='tb';db.textContent='▼';db.style.cssText=`width:${Math.round(lw*0.72)}px;height:${lh}px;font-size:${Math.round(lh*0.38)}px`;db.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS(softDrop);},{passive:false});db.addEventListener('touchend',e=>{e.preventDefault();stopDAS();},{passive:false});db.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS();},{passive:false});
+  function mkDAS(text,fn){
+    const b=document.createElement('button');b.className='tb';b.textContent=text;b.style.cssText=`width:${lw}px;height:${lh}px;font-size:${Math.round(lh*0.42)}px`;
+    b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS(fn);},{passive:false});
+    b.addEventListener('touchend',e=>{e.preventDefault();stopDAS();},{passive:false});
+    b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS();},{passive:false});
+    return b;
+  }
+  const db=document.createElement('button');db.className='tb';db.textContent='▼';db.style.cssText=`width:${Math.round(lw*0.72)}px;height:${lh}px;font-size:${Math.round(lh*0.38)}px`;
+  db.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS(softDrop);},{passive:false});
+  db.addEventListener('touchend',e=>{e.preventDefault();stopDAS();},{passive:false});
+  db.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS();},{passive:false});
   r2.appendChild(mkDAS('◄',moveLeft));r2.appendChild(db);r2.appendChild(mkDAS('►',moveRight));
 }
 
@@ -841,7 +882,20 @@ function startBGM(){ensureAudio();bgmOn=true;bgmWasOn=true;clearTimeout(bgmTimer
 function stopBGM(){bgmOn=false;clearTimeout(bgmTimer);updMusicBtn();}
 function toggleBGM(){if(bgmOn){bgmWasOn=false;stopBGM();}else startBGM();}
 function updMusicBtn(){const b=document.getElementById('music-btn');b.textContent=bgmOn?'🎵':'🔇';b.className=bgmOn?'topbar-btn on':'topbar-btn';}
-function sfx(type){if(!audioCtx)return;const now=audioCtx.currentTime;switch(type){case 'move':tone(200,now,.035,'square',.018);break;case 'rot':tone(320,now,.04,'square',.022);break;case 'hold':tone(440,now,.07,'square',.028);break;case 'drop':{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.type='sawtooth';o.frequency.setValueAtTime(200,now);o.frequency.exponentialRampToValueAtTime(55,now+.14);g.gain.setValueAtTime(.1,now);g.gain.exponentialRampToValueAtTime(0.0001,now+.16);o.start(now);o.stop(now+.16);break;}case 'clear':[523,659,784,1047].forEach((f,i)=>tone(f,now+i*.055,.14,'square',.038));break;case 'tetris':[392,523,659,784,1047,1319].forEach((f,i)=>tone(f,now+i*.04,.18,'square',.055));break;case 'gameover':[440,415,392,370,349,294,261].forEach((f,i)=>tone(f,now+i*.1,.16,'sawtooth',.05));break;}}
+function sfx(type){
+  if(!audioCtx)return;
+  const now=audioCtx.currentTime;
+  switch(type){
+    case 'move':tone(200,now,.035,'square',.018);break;
+    case 'rot':tone(320,now,.04,'square',.022);break;
+    case 'hold':tone(440,now,.07,'square',.028);break;
+    case 'drop':{const o=audioCtx.createOscillator(),g=audioCtx.createGain();o.connect(g);g.connect(audioCtx.destination);o.type='sawtooth';o.frequency.setValueAtTime(200,now);o.frequency.exponentialRampToValueAtTime(55,now+.14);g.gain.setValueAtTime(.1,now);g.gain.exponentialRampToValueAtTime(0.0001,now+.16);o.start(now);o.stop(now+.16);break;}
+    case 'clear':[523,659,784,1047].forEach((f,i)=>tone(f,now+i*.055,.14,'square',.038));break;
+    case 'tetris':[392,523,659,784,1047,1319].forEach((f,i)=>tone(f,now+i*.04,.18,'square',.055));break;
+    case 'gameover':[440,415,392,370,349,294,261].forEach((f,i)=>tone(f,now+i*.1,.16,'sawtooth',.05));break;
+    case 'chat':[880,1174].forEach((f,i)=>tone(f,now+i*.08,.1,'sine',.03));break;
+  }
+}
 
 /* ════════════════════════════════
    WebSocket (방 코드 기반)
@@ -952,7 +1006,14 @@ function handleMsg(m){
       currentPhase='ended';isPlaying=false;if(rafId){cancelAnimationFrame(rafId);rafId=null;}
       if(!isPractice){stopSpec();showWin(m);stopBGM();}break;
 
-    case 'chat':addChatMsg(m.name,m.text);break;
+    case 'chat':
+      addChatMsg(m.name,m.text);
+      sfx('chat');
+      if(!document.getElementById('ov-chat').classList.contains('show')){
+        const shortText = m.text.length > 15 ? m.text.slice(0, 15) + '...' : m.text;
+        toast(`💬 ${m.name}: ${shortText}`);
+      }
+      break;
 
     case 'error':toast('⚠ '+m.msg);break;
 
@@ -1006,7 +1067,7 @@ function renderLobby(pArr){
     const vs=document.createElement('div');vs.className='vs-lbl';vs.textContent='VS';
     pArr.forEach((p,i)=>{(p.team===0?c0:c1).appendChild(mkPI(p,i));});
     wr.appendChild(c0);wr.appendChild(vs);wr.appendChild(c1);list.appendChild(wr);
-    document.getElementById('swap-btn').style.display='inline-block'; // 수정: 방장도 버튼 표시
+    document.getElementById('swap-btn').style.display='inline-block';
   } else {
     pArr.forEach((p,i)=>list.appendChild(mkPI(p,i)));
     document.getElementById('swap-btn').style.display='none';
