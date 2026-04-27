@@ -933,7 +933,8 @@ function handleMsg(m){
       players={};m.players.forEach(p=>players[p.id]=p);
       startLevel=m.settings?.startLevel||1;garbageMult=m.settings?.garbageMult||1;
       Object.keys(specBoards).forEach(k=>delete specBoards[k]);
-      ['ov-dead','ov-win','ov-spec'].forEach(id=>document.getElementById(id).classList.remove('show'));
+      // 🔥 버그수정 1: 게임 시작 시 랭킹, 채팅, 목표창 등 띄워져 있는 모든 팝업을 확실하게 닫아줌
+      ['ov-dead','ov-win','ov-spec','ov-lb','ov-chat','ov-goal'].forEach(id=>document.getElementById(id).classList.remove('show'));
       spectatingId=null;chatUnread=0;updateChatBadge();
       showPage('game');
       document.getElementById('chat-btn').style.display='inline-block';
@@ -1066,39 +1067,32 @@ function stopDAS(fn){
   }
 }
 
-/* ════ 유틸 ════ */
-function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
-function showPage(name){
-  ['page-entry','page-lobby','page-game'].forEach(id=>{const el=document.getElementById(id);if(el){el.classList.remove('active');el.style.display='none';}});
-  const pg=document.getElementById('page-'+name);if(!pg)return;
-  pg.style.display='';pg.classList.add('active');
-  if(name==='game'){pg.style.display='flex';fixPageHeight();}
-}
-let toastT=null;
-function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>el.classList.remove('show'),2500);}
-function flashAtk(n,from){document.getElementById('atk-flash').classList.add('show');sfx('drop');toast(`💥 ${from}에게서 ${n}줄!`);setTimeout(()=>document.getElementById('atk-flash').classList.remove('show'),250);}
-function spawnConfetti(){const wrap=document.getElementById('confetti-wrap');wrap.innerHTML='';const cols=['#f7c948','#ff5e87','#4ef7c9','#a78bfa','#fff'];for(let i=0;i<90;i++){const p=document.createElement('div');p.className='cp';p.style.left=Math.random()*100+'vw';p.style.width=(5+Math.random()*7)+'px';p.style.height=(5+Math.random()*7)+'px';p.style.background=cols[0|Math.random()*cols.length];p.style.animationDuration=(2+Math.random()*3)+'s';p.style.animationDelay=(Math.random()*2)+'s';p.style.borderRadius=Math.random()>.5?'50%':'2px';wrap.appendChild(p);}}
+/* ════ 유틸 & 이벤트 리스너 ════ */
+// 🔥 버그수정 2: 화면 회전이나 크기 변경 시, 무한 미끄러짐 방지를 위해 stopDAS() 강제 호출
+window.addEventListener('resize',()=>{clearTimeout(window._rt);window._rt=setTimeout(()=>{stopDAS(); fixPageHeight();if(document.getElementById('page-game').classList.contains('active'))initCanvases();},300);});
+window.addEventListener('orientationchange',()=>{setTimeout(()=>{stopDAS(); fixPageHeight();if(document.getElementById('page-game').classList.contains('active'))initCanvases();},400);});
 
-window.addEventListener('resize',()=>{clearTimeout(window._rt);window._rt=setTimeout(()=>{fixPageHeight();if(document.getElementById('page-game').classList.contains('active'))initCanvases();},300);});
-window.addEventListener('orientationchange',()=>{setTimeout(()=>{fixPageHeight();if(document.getElementById('page-game').classList.contains('active'))initCanvases();},400);});
 document.getElementById('entry-name').addEventListener('keydown',e=>{if(e.key==='Enter')createRoom();});
 document.getElementById('join-code-inp').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'');});
 document.getElementById('join-code-inp').addEventListener('keydown',e=>{if(e.key==='Enter')joinRoom();});
 document.addEventListener('touchstart',()=>{if(!audioCtx)ensureAudio();},{once:true,passive:true});
 document.addEventListener('click',()=>{if(!audioCtx)ensureAudio();},{once:true,passive:true});
 
+// 🔥 버그수정 3: 연습 모드도 백그라운드로 가면 꼬이지 않게 같이 종료 + DAS 강제 정지
+document.addEventListener("visibilitychange", () => {
+  if (document.hidden) {
+    stopDAS(); // 화면이 가려지면 무조건 눌린 방향키 취소
+    if (isPlaying) {
+      triggerDead(); // 멀티, 연습 상관없이 강제 종료
+      toast(isPractice ? '⚠ 화면을 벗어나 연습이 종료되었습니다.' : '⚠ 게임 화면을 벗어나 탈락 처리되었습니다.');
+    }
+  }
+});
+
 /* ── 초기화 ── */
 buildThemeGrid();applyTheme(themeKey);showRecords();
 initHoldListeners(); 
 connect();
-  // 🔥 백그라운드 무적 꼼수 방지 (화면 벗어나면 즉시 사망)
-document.addEventListener("visibilitychange", () => {
-  // 화면이 가려졌고(hidden), 현재 게임 중이며, 연습모드가 아닐 때
-  if (document.hidden && isPlaying && !isPractice) {
-    triggerDead(); // 즉시 게임 오버 처리
-    toast('⚠ 게임 화면을 벗어나 탈락 처리되었습니다.');
-  }
-});
 </script>
 </body>
 </html>
