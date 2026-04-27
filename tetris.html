@@ -488,7 +488,11 @@ function buildTouchCtrl(){
   const vw=window.innerWidth;
   // 하단 기준 크기 먼저 계산
   const botBw=Math.max(70,Math.min(120,Math.floor((vw-28)/3)));
-  const botBh=Math.max(44,Math.floor(window.innerHeight*0.075));
+  const botBh=Math.max(52,Math.floor(window.innerHeight*0.088));
+  
+  // 🔥 1열 전용 높이 추가 (예: 2열 높이의 70% 크기)
+  const topBh=Math.floor(botBh * 0.7); 
+
   const dropW=Math.round(botBw*0.72);   // ▼ 버튼 너비
   const rotW=Math.round(botBw/2);       // ↺↻ 각각 너비 (►의 절반)
   const r1=document.getElementById('tc-row1'),r2=document.getElementById('tc-row2');
@@ -498,10 +502,12 @@ function buildTouchCtrl(){
   // 상단: 탭 전용 (DAS 없음)
   function mkTap(text,cls,w,fn){
     const b=document.createElement('button');b.className='tb '+cls;b.textContent=text;
-    b.style.cssText=`width:${w}px;height:${botBh}px;font-size:${Math.round(botBh*0.38)}px`;
+    // 🔥 여기를 botBh 대신 topBh로 변경! (버튼 높이랑 글자 크기 모두 줄어듦)
+    b.style.cssText=`width:${w}px;height:${topBh}px;font-size:${Math.round(topBh*0.38)}px`; 
     b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying){ensureAudio();fn();}},{passive:false});
     r1.appendChild(b);
   }
+// ... (아래는 그대로 유지) ...
   // 하단: DAS 지원
   function mkDAS(text,w,fn){
     const b=document.createElement('button');b.className='tb';b.textContent=text;
