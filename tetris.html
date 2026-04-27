@@ -507,22 +507,28 @@ function initCanvases(){
 function fixPageHeight(){document.getElementById('page-game').style.height=window.innerHeight+'px';}
 
 /* ════════════════════════════════
-   터치 컨트롤 (3x2 완벽 정렬)
+   터치 컨트롤 (오입력 방지 레이아웃 적용)
 ════════════════════════════════ */
 function buildTouchCtrl(){
   const vw = window.innerWidth;
   const bw = Math.max(70, Math.min(120, Math.floor((vw - 30) / 3))); 
-  const bh = Math.max(46, Math.min(65, Math.floor(window.innerHeight * 0.08)));
+  
+  // 🔥 윗줄(액션)은 얇게, 아랫줄(이동)은 두툼하게 높이 분리!
+  const topBh = Math.max(40, Math.floor(window.innerHeight * 0.060)); // 윗줄 얇게
+  const botBh = Math.max(55, Math.floor(window.innerHeight * 0.095)); // 아랫줄 빵빵하게
   
   const r1 = document.getElementById('tc-row1');
   const r2 = document.getElementById('tc-row2');
   r1.innerHTML = ''; r2.innerHTML = '';
   
-  function mkBtn(text, cls, rowEl, fn, das) {
+  // 🔥 위아래 줄 사이에 넓은 여백(데드존) 추가
+  r2.style.marginTop = '16px'; 
+  
+  function mkBtn(text, cls, rowEl, fn, das, h) {
     const b = document.createElement('button');
     b.className = 'tb ' + cls;
     b.textContent = text;
-    b.style.cssText = `width:${bw}px;height:${bh}px;font-size:${Math.round(bh*0.4)}px`;
+    b.style.cssText = `width:${bw}px;height:${h}px;font-size:${Math.round(h*0.38)}px`;
     
     if(das){
       b.addEventListener('touchstart', e => { e.preventDefault(); if(isPlaying) startDAS(fn); }, {passive:false});
@@ -535,15 +541,15 @@ function buildTouchCtrl(){
     return b;
   }
   
-  // 첫 번째 줄: HOLD, 하드드롭(▲▲), 우회전(↻)
-  mkBtn('HOLD', 'tb-hold', r1, doHold, false);
-  mkBtn('▲▲', 'tb-drop', r1, hardDrop, false);
-  mkBtn('↻', '', r1, rotateCW, false);
+  // 첫 번째 줄 (얇게)
+  mkBtn('HOLD', 'tb-hold', r1, doHold, false, topBh);
+  mkBtn('DROP', 'tb-drop', r1, hardDrop, false, topBh);
+  mkBtn('↻', '', r1, rotateCW, false, topBh);
   
-  // 두 번째 줄: 좌이동(◄), 소프트드롭(▼), 우이동(►)
-  mkBtn('◄', '', r2, moveLeft, true);
-  mkBtn('▼', '', r2, softDrop, true);
-  mkBtn('►', '', r2, moveRight, true);
+  // 두 번째 줄 (두툼하게)
+  mkBtn('◄', '', r2, moveLeft, true, botBh);
+  mkBtn('▼', '', r2, softDrop, true, botBh);
+  mkBtn('►', '', r2, moveRight, true, botBh);
 }
 
 /* ════════════════════════════════
