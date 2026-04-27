@@ -68,7 +68,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
 /* ── 게임 페이지 ── */
 #page-game{padding:0;height:100vh;overflow:hidden;position:relative;align-items:center;justify-content:flex-start}
 #page-game.active{display:flex;flex-direction:column}
-.game-topbar{position:absolute;top:5px;right:6px;z-index:60;display:flex;gap:5px}
+.game-topbar{position:absolute;top:5px;right:6px;z-index:60;display:flex;flex-direction:column;gap:4px;align-items:flex-end}
 .topbar-btn{background:rgba(16,16,42,.88);border:1px solid var(--border);border-radius:6px;color:var(--text);padding:3px 8px;font-size:.82rem;cursor:pointer;transition:all .2s;font-family:'Black Han Sans',sans-serif;letter-spacing:.04em;position:relative}
 .topbar-btn:hover{border-color:var(--a3);color:var(--a3)}
 .topbar-btn.on{border-color:var(--a3);color:var(--a3)}
@@ -290,10 +290,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
   <div id="practice-badge">연습 모드</div>
   <div id="goal-bar"></div>
   <div class="game-topbar">
-    <!-- 버그수정①: 음악버튼을 topbar로 이동 (hud-hold 높이 증가 방지) -->
-    <button class="topbar-btn" id="music-btn" onclick="toggleBGM()">🔇</button>
     <button class="topbar-btn" id="chat-btn" onclick="openChat()" style="display:none">💬<div id="chat-badge"></div></button>
     <button class="topbar-btn" id="home-btn" style="display:none;color:#bb88ff;border-color:#bb88ff" onclick="exitPractice()">← 홈</button>
+    <!-- 음악 버튼: 홈 버튼 아래 배치 (NEXT 캔버스 가림 방지) -->
+    <button class="topbar-btn" id="music-btn" onclick="toggleBGM()">🔇</button>
   </div>
   <div id="game-hud">
     <!-- hold-canvas: 리스너는 initHoldListeners()에서 1번만 등록 (버그수정②) -->
@@ -480,50 +480,56 @@ function initHoldListeners(){
   hc.addEventListener('click',()=>{if(isPlaying)doHold();});
 }
 
-/* ════ 터치 컨트롤 (↺ ↻ 분리 + 오입력 방지) ════ */
+/* ════ 터치 컨트롤 ════
+   상단: HOLD(=◄크기) | DROP(=▼크기) | ↺(►절반) | ↻(►절반)
+   하단: ◄ | ▼ | ►
+════ */
 function buildTouchCtrl(){
   const vw=window.innerWidth;
-  // 상단 5버튼: HOLD DROP ↺ ↻ (균등 분배)
-  const topBw=Math.max(52,Math.min(90,Math.floor((vw-34)/5)));
-  const topBh=Math.max(40,Math.floor(window.innerHeight*0.062));
-  // 하단 3버튼: ◄ ▼ ► (크게)
+  // 하단 기준 크기 먼저 계산
   const botBw=Math.max(70,Math.min(120,Math.floor((vw-28)/3)));
   const botBh=Math.max(52,Math.floor(window.innerHeight*0.088));
+  const dropW=Math.round(botBw*0.72);   // ▼ 버튼 너비
+  const rotW=Math.round(botBw/2);       // ↺↻ 각각 너비 (►의 절반)
   const r1=document.getElementById('tc-row1'),r2=document.getElementById('tc-row2');
   r1.innerHTML='';r2.innerHTML='';
   r2.style.marginTop='10px';
 
-  function mkTap(text,cls,fn){
+  // 상단: 탭 전용 (DAS 없음)
+  function mkTap(text,cls,w,fn){
     const b=document.createElement('button');b.className='tb '+cls;b.textContent=text;
-    b.style.cssText=`width:${topBw}px;height:${topBh}px;font-size:${Math.round(topBh*0.38)}px`;
+    b.style.cssText=`width:${w}px;height:${botBh}px;font-size:${Math.round(botBh*0.38)}px`;
     b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying){ensureAudio();fn();}},{passive:false});
-    r1.appendChild(b);return b;
+    r1.appendChild(b);
   }
-  function mkDAS(text,fn){
+  // 하단: DAS 지원
+  function mkDAS(text,w,fn){
     const b=document.createElement('button');b.className='tb';b.textContent=text;
-    b.style.cssText=`width:${botBw}px;height:${botBh}px;font-size:${Math.round(botBh*0.42)}px`;
+    b.style.cssText=`width:${w}px;height:${botBh}px;font-size:${Math.round(botBh*0.42)}px`;
     b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS(fn);},{passive:false});
     b.addEventListener('touchend',e=>{e.preventDefault();stopDAS();},{passive:false});
     b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS();},{passive:false});
-    r2.appendChild(b);return b;
+    r2.appendChild(b);
   }
-  function mkDrop(){
+  function mkDownDAS(){
     const b=document.createElement('button');b.className='tb';b.textContent='▼';
-    b.style.cssText=`width:${Math.round(botBw*0.72)}px;height:${botBh}px;font-size:${Math.round(botBh*0.38)}px`;
+    b.style.cssText=`width:${dropW}px;height:${botBh}px;font-size:${Math.round(botBh*0.38)}px`;
     b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS(softDrop);},{passive:false});
     b.addEventListener('touchend',e=>{e.preventDefault();stopDAS();},{passive:false});
     b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS();},{passive:false});
     r2.appendChild(b);
   }
-  // 상단 행: HOLD | 하드드롭 | ↺(반시계) | ↻(시계)
-  mkTap('HOLD','tb-hold',doHold);
-  mkTap('▲▲','tb-drop',hardDrop);
-  mkTap('↺','tb-ccw',rotateCCW);  // 왼쪽 회전
-  mkTap('↻','tb-cw', rotateCW);   // 오른쪽 회전
+
+  // 상단 행: HOLD(◄크기) | DROP(▼크기) | ↺(►절반) | ↻(►절반)
+  mkTap('HOLD','tb-hold',botBw,doHold);
+  mkTap('▲▲','tb-drop',dropW,hardDrop);
+  mkTap('↺','tb-ccw',rotW,rotateCCW);
+  mkTap('↻','tb-cw',rotW,rotateCW);
   // 하단 행: ◄ | ▼ | ►
-  mkDAS('◄',moveLeft);
-  mkDrop();
-  mkDAS('►',moveRight);
+  mkDAS('◄',botBw,moveLeft);
+  mkDownDAS();
+  mkDAS('►',botBw,moveRight);
+}
 }
 
 /* ════ 테트리스 엔진 ════ */
