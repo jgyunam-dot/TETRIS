@@ -439,7 +439,7 @@ const SHAPES=[
  [[[0,0,1],[1,1,1],[0,0,0]],[[0,1,0],[0,1,0],[0,1,1]],[[0,0,0],[1,1,1],[1,0,0]],[[1,1,0],[0,1,0],[0,1,0]]],
 ];
 const PC=[1,2,3,4,5,6,7];
-const KK={JLSTZ:{'0-1':[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]],'1-0':[[0,0],[1,0],[1,1],[0,-2],[1,-2]],'1-2':[[0,0],[1,0],[1,1],[0,-2],[1,-2]],'2-1':[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]],'2-3':[[0,0],[1,0],[1,-1],[0,2],[1,2]],'3-2':[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],'3-0':[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],'0-3':[[0,0],[1,0],[1,-1],[0,2],[1,2]]},I:{'0-1':[[0,0],[-2,0],[1,0],[-2,-1],[1,2]],'1-0':[[0,0],[2,0],[-1,0],[2,1],[-1,-2]],'1-2':[[0,0],[-1,0],[2,0],[-1,-2],[2,1]],'2-1':[[0,0],[1,0],[-2,0],[1,2],[-2,-1]],'2-3':[[0,0],[2,0],[-1,0],[2,1],[-1,-2]],'3-2':[[0,0],[-2,0],[1,0],[-2,-1],[1,2]],'3-0':[[0,0],[1,0],[-2,0],[1,2],[-2,-1]],'0-3':[[0,0],[-1,0],[2,0],[-1,-2],[2,1]]}};
+const KK={JLSTZ:{'0-1':[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]],'1-0':[[0,0],[1,0],[1,1],[0,-2],[1,-2]],'1-2':[[0,0],[1,0],[1,1],[0,-2],[1,-2]],'2-1':[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]],'2-3':[[0,0],[1,0],[1,-1],[0,2],[1,2]],'3-2':[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],'3-0':[[0,0],[-1,0],[-1,1],[0,-2],[-1,-2]],'0-3':[[0,0],[1,0],[1,-1],[0,2],[1,2]]},I:{'0-1':[[0,0],[-2,0],[1,0],[-2,-1],[1,2]],'1-0':[[0,0],[2,0],[-1,0],[2,1],[-1,-2]],'1-2':[[0,0],[-1,0],[2,0],[-1,-2],[2,1]],'2-1':[[0,0],[1,0],[-2,0],[1,2],[-2,-1]],'2-3':[[0,0],[2,0],[-1,0],[2,1],[-1,-2]],'3-2':[[0,0],[-2,0],[1,0],[-2,-1],[1,2]],'3-0':[[0,0],[-1,0],[-2,0],[1,2],[-2,-1]],'0-3':[[0,0],[-1,0],[2,0],[-1,-2],[2,1]]}};
 
 /* ════ 레이아웃 ════ */
 let CELL=20,SC=12,MX=3;
@@ -770,7 +770,6 @@ function updGB(){if(isPractice)return;const bar=document.getElementById('garbage
 
 /* ════ 타겟 시스템 ════ */
 let currentTarget=null;
-/* 버그수정④: 사망 시 조용히 타겟 해제 (toast 없이) */
 function clearTargetSilent(id){
   if(currentTarget!==id)return;
   currentTarget=null;
@@ -824,13 +823,12 @@ function mkMC(p,team){
   cv.addEventListener('touchend',e=>{e.preventDefault();onTap();},{passive:false});
   return w;
 }
-/* 버그수정⑤: 테마 boardBg 사용 */
 function updateMini(id,bd,sc2,name){
   if(!specBoards[id])specBoards[id]={};
   specBoards[id]={board:bd,score:sc2,lines:specBoards[id]?.lines||0,level:specBoards[id]?.level||1,name:name||players[id]?.name||id};
   const cv=document.getElementById('mv-'+id);if(!cv)return;
   const ctx=cv.getContext('2d');
-  ctx.fillStyle=THEMES[themeKey].boardBg; // 테마 색상 적용
+  ctx.fillStyle=THEMES[themeKey].boardBg; 
   ctx.fillRect(0,0,cv.width,cv.height);
   for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){const ci=bd[r*COLS+c];if(!ci)continue;ctx.fillStyle=COLORS[ci];ctx.fillRect(c*MX+.5,r*MX+.5,MX-1,MX-1);}
   const el=document.getElementById('ms-'+id);if(el)el.textContent=(sc2||0)>9999?Math.floor((sc2||0)/1000)+'K':(sc2||0);
@@ -840,7 +838,7 @@ function markDeadMini(id){
   const w=document.getElementById('mc-'+id);if(!w)return;
   w.classList.add('dead');w.classList.remove('target-active');
   const ov=document.createElement('div');ov.className='mc-dov';ov.textContent='💀';w.appendChild(ov);
-  clearTargetSilent(id); // 버그수정④: 조용히 타겟 해제
+  clearTargetSilent(id); 
 }
 let spectatingId=null,specCtx=null,specCELL=16;
 function startSpec(id,name){spectatingId=id;document.getElementById('spec-name').textContent=`👁 ${name||id} 관전 중`;specCELL=Math.max(12,Math.min(26,Math.floor(window.innerHeight*.66/ROWS),Math.floor(window.innerWidth*.84/COLS)));const sc=document.getElementById('spec-canvas');sc.width=COLS*specCELL;sc.height=ROWS*specCELL;specCtx=sc.getContext('2d');const bd=specBoards[id];if(bd)drawSpec(bd.board,bd.score,bd.lines,bd.level);buildSpecSwitcher();document.getElementById('ov-spec').classList.add('show');}
@@ -900,7 +898,12 @@ function getEntryName(){return document.getElementById('entry-name').value.trim(
 function createRoom(){const name=getEntryName();if(!name){toast('닉네임을 입력해주세요!');return;}sessionStorage.setItem('tetName',name);if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:'create_room',name}));}
 function joinRoom(){const name=getEntryName();if(!name){toast('닉네임을 입력해주세요!');return;}const code=document.getElementById('join-code-inp').value.trim().toUpperCase();if(code.length!==6){toast('코드는 6자리예요!');return;}sessionStorage.setItem('tetName',name);if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:'join_room',name,code}));}
 function leaveRoom(){if(ws)ws.close();showPage('entry');myReady=false;currentCode='';players={};document.getElementById('ready-btn').textContent='✔ 준비하기';document.getElementById('ready-btn').className='btn btn-c';}
-function returnToLobbyLocal(){stopSpec();['ov-dead','ov-win','ov-spec'].forEach(id=>document.getElementById(id).classList.remove('show'));showPage('lobby');}
+function returnToLobbyLocal(){
+  stopSpec();
+  document.getElementById('confetti-wrap').innerHTML=''; // 🔥 유령 폭죽 청소 추가
+  ['ov-dead','ov-win','ov-spec'].forEach(id=>document.getElementById(id).classList.remove('show'));
+  showPage('lobby');
+}
 function copyCode(){navigator.clipboard?.writeText(currentCode).then(()=>toast('코드 복사 완료! 📋')).catch(()=>toast(currentCode));}
 
 function handleMsg(m){
@@ -965,6 +968,7 @@ function applyServerSettings(s){
 }
 function doStartGame(){if(!ws||ws.readyState!==WebSocket.OPEN)return;ws.send(JSON.stringify({type:'start_game'}));}
 function requestRestart(){if(ws)ws.send(JSON.stringify({type:'restart'}));}
+
 function showWin(m){
   stopSpec();const myTeam=players[myId]?.team;
   const isWin=(m.winnerTeam===-1&&m.winnerId===myId)||(m.winnerTeam>=0&&myTeam===m.winnerTeam);
@@ -976,6 +980,9 @@ function showWin(m){
   const scores=(m.scores||[]).sort((a,b)=>(b.score||0)-(a.score||0));
   const tbl=document.getElementById('win-scores');tbl.innerHTML='';
   scores.forEach((p,i)=>{const r=document.createElement('div');r.className='score-row';r.innerHTML=`<div class="score-rank">${i+1}</div><div class="score-name">${escHtml(p.name)}${p.id===myId?' (나)':''}</div><div class="score-num">${(p.score||0).toLocaleString()}</div>`;tbl.appendChild(r);});
+  
+  document.getElementById('confetti-wrap').innerHTML=''; // 🔥 유령 폭죽 청소 추가
+
   if(isWin)spawnConfetti();
   document.getElementById('restart-btn').style.display=isHost?'inline-block':'none';
   document.getElementById('ov-win').classList.add('show');
@@ -1077,7 +1084,7 @@ document.addEventListener('click',()=>{if(!audioCtx)ensureAudio();},{once:true,p
 
 /* ── 초기화 ── */
 buildThemeGrid();applyTheme(themeKey);showRecords();
-initHoldListeners(); // 버그수정②: 1번만 등록
+initHoldListeners(); 
 connect();
   // 🔥 백그라운드 무적 꼼수 방지 (화면 벗어나면 즉시 사망)
 document.addEventListener("visibilitychange", () => {
