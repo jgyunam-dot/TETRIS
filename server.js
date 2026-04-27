@@ -108,8 +108,16 @@ const server=http.createServer((req,res)=>{
   res.setHeader('Access-Control-Allow-Headers','Content-Type');
   if(req.method==='OPTIONS'){res.writeHead(204);res.end();return;}
 
-  if(req.method==='GET'&&req.url==='/scores'){
-    loadScores().then(s=>{res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(s.slice(0,50)));}).catch(()=>{res.writeHead(200,{'Content-Type':'application/json'});res.end('[]');});
+  if(req.method==='GET'&&req.url.startsWith('/scores')){
+    const qs=new URL(req.url,'http://localhost').searchParams;
+    const mode=qs.get('mode')||'all';
+    loadScores().then(all=>{
+      let s=mode==='all'?[...all]:all.filter(x=>x.mode===mode);
+      // 스프린트는 시간 오름차순(빠를수록 1위), 나머지는 점수 내림차순
+      if(mode==='sprint')s.sort((a,b)=>(a.time??9999)-(b.time??9999));
+      else s.sort((a,b)=>(b.score||0)-(a.score||0));
+      res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify(s.slice(0,50)));
+    }).catch(()=>{res.writeHead(200,{'Content-Type':'application/json'});res.end('[]');});
     return;
   }
 
@@ -121,14 +129,21 @@ const server=http.createServer((req,res)=>{
         const score=Math.min(Math.max(0,parseInt(e.score)||0),9999999);
         const lines=Math.min(Math.max(0,parseInt(e.lines)||0),9999);
         const level=Math.min(Math.max(1,parseInt(e.level)||1),100);
+        const mode=(['sprint','blitz','score','marathon'].includes(e.mode)?e.mode:'marathon');
+        const time=mode==='sprint'&&e.time!=null?Math.max(0,parseInt(e.time)||0):null;
         const now=new Date();const date=`${now.getFullYear()}.${now.getMonth()+1}.${now.getDate()}`;
         const uid=`${Date.now()}_${Math.random().toString(36).slice(2)}`;
         const scores=await loadScores();
-        scores.push({name,score,lines,level,date,uid});
-        scores.sort((a,b)=>b.score-a.score);const top=scores.slice(0,100);
+        scores.push({name,score,lines,level,mode,time,date,uid});
+        // 저장 시: 스프린트는 시간순, 나머지는 점수순으로 각각 상위 100개
+        const top=scores.slice(0,400); // 여유 있게 보관
         await saveScores(top);
-        const rank=top.findIndex(s=>s.uid===uid)+1;
-        res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true,rank}));
+        // 같은 모드 내 순위
+        let modeScores=scores.filter(s=>s.mode===mode);
+        if(mode==='sprint')modeScores.sort((a,b)=>(a.time??9999)-(b.time??9999));
+        else modeScores.sort((a,b)=>(b.score||0)-(a.score||0));
+        const rank=modeScores.findIndex(s=>s.uid===uid)+1;
+        res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true,rank,mode}));
       }catch(e){console.error('점수 오류:',e.message);res.writeHead(400,{'Content-Type':'application/json'});res.end('{"ok":false}');}
     });
     return;
