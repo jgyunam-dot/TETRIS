@@ -135,15 +135,28 @@ const server=http.createServer((req,res)=>{
         const time=mode==='sprint'&&e.time!=null?Math.max(0,parseInt(e.time)||0):null;
         const now=new Date();const date=`${now.getFullYear()}.${now.getMonth()+1}.${now.getDate()}`;
         const uid=`${Date.now()}_${Math.random().toString(36).slice(2)}`;
+        
         const scores=await loadScores();
         scores.push({name,score,lines,level,mode,time,date,uid});
-        const top=scores.slice(0,400); 
-        await saveScores(top);
-        let modeScores=scores.filter(s=>s.mode===mode);
-        if(mode==='sprint')modeScores.sort((a,b)=>(a.time??9999)-(b.time??9999));
-        else modeScores.sort((a,b)=>(b.score||0)-(a.score||0));
+        
+        // 🚨 수정됨: 모드별로 정렬하여 각 모드당 상위 100개씩만 남김 (총 최대 400개)
+        let newTop = [];
+        ['sprint', 'blitz', 'score', 'marathon'].forEach(m => {
+          let mScores = scores.filter(s => s.mode === m);
+          if (m === 'sprint') mScores.sort((a,b) => (a.time??9999) - (b.time??9999));
+          else mScores.sort((a,b) => (b.score||0) - (a.score||0));
+          newTop.push(...mScores.slice(0, 100)); // 찐기록 증발 방지
+        });
+        
+        await saveScores(newTop);
+        
+        // 현재 등록한 유저의 순위 계산
+        let modeScores=newTop.filter(s=>s.mode===mode);
         const rank=modeScores.findIndex(s=>s.uid===uid)+1;
-        res.writeHead(200,{'Content-Type':'application/json'});res.end(JSON.stringify({ok:true,rank,mode}));
+        
+        // rank가 0이면 100위 밖으로 밀려난 것
+        res.writeHead(200,{'Content-Type':'application/json'});
+        res.end(JSON.stringify({ok:true,rank: rank > 0 ? rank : '100+',mode}));
       }catch(e){console.error('점수 오류:',e.message);res.writeHead(400,{'Content-Type':'application/json'});res.end('{"ok":false}');}
     });
     return;
@@ -238,11 +251,23 @@ wss.on('connection',ws=>{
         broadcastLobby(room);break;
       }
 
-      case 'swap_team':
+      case 'swap_team':{
         if(!p||room.phase==='playing'||room.mode==='ffa')break;
         if(room.phase==='ended')room.phase='lobby';
-        p.team = p.team === 0 ? 1 : 0;
-        broadcastLobby(room);break;
+        
+        // 🚨 수정됨: 이동하려는 팀이 꽉 찼는지 검사하는 로직 추가
+        const targetTeam = p.team === 0 ? 1 : 0;
+        const maxPerTeam = MODE_MAX[room.mode] / 2; // (예: 2v2 모드면 4/2 = 최대 2명)
+        const currentTargetCount = Object.values(room.players).filter(pl => pl.team === targetTeam).length;
+        
+        if (currentTargetCount < maxPerTeam) {
+          p.team = targetTeam;
+          broadcastLobby(room);
+        } else {
+          sendTo(id, {type:'error', msg:'해당 팀 인원이 이미 꽉 찼어!'}); // 프론트에 에러 메시지 팝업 전송
+        }
+        break;
+      }
 
       case 'set_ready':
         if(!p||room.phase==='playing')break;
