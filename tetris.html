@@ -107,7 +107,7 @@ input{user-select:auto;-webkit-user-select:auto;}
 /* 터치 컨트롤 */
 #touch-ctrl{flex-shrink:0;background:rgba(8,8,21,.97);border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px;padding:8px;padding-bottom:max(8px,env(safe-area-inset-bottom));align-items:center;width:100%}
 .tc-row{display:flex;gap:5px;justify-content:center;width:100%}
-.tb{background:rgba(255,255,255,.08);border:1.5px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;transition:background .1s;-webkit-tap-highlight-color:transparent}
+.tb{background:rgba(255,255,255,.08);border:1.5px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:manipulation;transition:background .1s;-webkit-tap-highlight-color:transparent}
 .tb:active{background:rgba(255,255,255,.25)!important}
 .tb-hold{color:var(--a1);border-color:rgba(247,201,72,.5);font-family:'Black Han Sans',sans-serif;letter-spacing:.04em}
 .tb-drop{color:var(--a3);border-color:rgba(78,247,201,.5)}
@@ -122,7 +122,7 @@ input{user-select:auto;-webkit-user-select:auto;}
 .ov-title{font-family:'Black Han Sans',sans-serif;font-size:clamp(1.6rem,7vw,3.5rem);letter-spacing:.12em;text-align:center}
 .ov-sub{font-size:.85rem;color:var(--muted);text-align:center;max-width:280px}
 
-/* 게임오버 시 뒤에 있는 미니보드가 잘 보이도록 블러 제거 */
+/* 🔥 게임오버 시 뒤에 있는 미니보드가 잘 보이도록 블러 제거 */
 #ov-dead{background:rgba(8,8,21,.5);pointer-events:none;backdrop-filter:none;-webkit-backdrop-filter:none}
 #ov-dead>*{pointer-events:auto}
 
@@ -499,7 +499,6 @@ function buildTouchCtrl(){
     r1.appendChild(b);
   }
   
-  // 🔥 버그수정 1: X축(좌우), Y축(아래) 타이머 분리로 DAS 멀티터치 충돌 해결
   function mkDAS_X(text,w,fn){
     const b=document.createElement('button');b.className='tb';b.textContent=text;
     b.style.cssText=`width:${w}px;height:${botBh}px;font-size:${Math.round(botBh*0.42)}px`;
@@ -609,13 +608,16 @@ function doHold(){
 
 function triggerDead(){
   if(isGameOver)return;
-  isPlaying=false;isGameOver=true;if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+  isPlaying=false;isGameOver=true;
+  if(rafId){cancelAnimationFrame(rafId);rafId=null;}
+  stopDAS_X(); stopDAS_Y(); 
   sfx('gameover');stopBGM();stopPracticeTimer();
   if(isPractice){showPracticeResult();}
   else{if(ws)ws.send(JSON.stringify({type:'player_dead',score}));document.getElementById('dead-score').textContent=`점수 ${score.toLocaleString()} · ${lines}라인`;document.getElementById('ov-dead').classList.add('show');}
 }
 
 function startTetris(){
+  if(rafId){cancelAnimationFrame(rafId);rafId=null;} // 🔥 버그수정 1
   initBoard();nextBag=[];nextPieces=[];holdType=-1;canHold=true;
   score=0;lines=0;level=startLevel;combo=-1;pendingGarbage=0;
   isPlaying=true;isGameOver=false;lastWasRot=false;b2bActive=false;
@@ -909,11 +911,26 @@ function joinRoom(){
   if(ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify({type:'join_room',name,code}));}
   else{toast('⚠ 서버 접속 중입니다. 잠시 후 다시 눌러주세요.');if(!ws||ws.readyState===WebSocket.CLOSED)connect();}
 }
-function leaveRoom(){if(ws)ws.close();showPage('entry');myReady=false;currentCode='';players={};document.getElementById('ready-btn').textContent='✔ 준비하기';document.getElementById('ready-btn').className='btn btn-c';}
+function leaveRoom(){
+  if(ws)ws.close();
+  showPage('entry');
+  myReady=false;currentCode='';players={};
+  document.getElementById('ready-btn').textContent='✔ 준비하기';
+  document.getElementById('ready-btn').className='btn btn-c';
+  // 🔥 버그수정 2-2: 채팅방 나갈 때 무조건 채팅 메시지 청소 (유령 메시지 방지)
+  document.getElementById('chat-messages').innerHTML=''; 
+}
 function returnToLobbyLocal(){
   stopSpec();
   document.getElementById('confetti-wrap').innerHTML='';
   ['ov-dead','ov-win','ov-spec'].forEach(id=>document.getElementById(id).classList.remove('show'));
+  
+  // 🔥 버그수정 3: 로비 복귀 시 내 준비 상태(Ready) 완벽 리셋
+  myReady = false;
+  document.getElementById('ready-btn').textContent = '✔ 준비하기';
+  document.getElementById('ready-btn').className = 'btn btn-c';
+  if(ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({type:'set_ready', ready:false}));
+  
   showPage('lobby');
 }
 function copyCode(){navigator.clipboard?.writeText(currentCode).then(()=>toast('코드 복사 완료! 📋')).catch(()=>toast(currentCode));}
@@ -940,7 +957,6 @@ function handleMsg(m){
       players={};m.players.forEach(p=>players[p.id]=p);
       startLevel=m.settings?.startLevel||1;garbageMult=m.settings?.garbageMult||1;
       Object.keys(specBoards).forEach(k=>delete specBoards[k]);
-      // 🔥 방장이 시작하면 모든 팝업창 무조건 강제 닫기
       ['ov-dead','ov-win','ov-spec','ov-lb','ov-chat','ov-goal'].forEach(id=>document.getElementById(id).classList.remove('show'));
       spectatingId=null;chatUnread=0;updateChatBadge();
       showPage('game');
@@ -1051,7 +1067,7 @@ function renderLeaderboard(scores,mode){
   document.getElementById('lb-wrap').innerHTML=scores.map((s,i)=>`<div class="lb-row ${s.name===myName?'lb-me':''}"><div class="lb-rank">${medals[i]||i+1}</div><div class="lb-name">${escHtml(s.name)}${s.name===myName?' ★':''}</div>${isSprint?`<span class="lb-score" style="color:var(--a3)">${fmtTime(s.time)}</span>`:`<span class="lb-score">${(s.score||0).toLocaleString()}</span>`}<div class="lb-detail">${s.lines||0}L Lv${s.level||1}</div></div>`).join('');
 }
 
-/* ════ 키보드 & DAS (🔥 버그수정 1: 멀티터치 타이머 완벽 분리) ════ */
+/* ════ 키보드 & DAS ════ */
 document.addEventListener('keydown',e=>{
   if(!isPlaying)return;
   switch(e.code){
@@ -1092,7 +1108,7 @@ document.getElementById('join-code-inp').addEventListener('keydown',e=>{if(e.key
 document.addEventListener('touchstart',()=>{if(!audioCtx)ensureAudio();},{once:true,passive:true});
 document.addEventListener('click',()=>{if(!audioCtx)ensureAudio();},{once:true,passive:true});
 
-// 🔥 백그라운드 강제 종료
+// 백그라운드 강제 종료 및 타이머 방어
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     stopDAS_X(); stopDAS_Y();
