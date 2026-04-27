@@ -9,8 +9,12 @@
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#080815;--card:#10102a;--border:#1e1e45;--a1:#f7c948;--a2:#ff5e87;--a3:#4ef7c9;--text:#e8e8ff;--muted:#555588;--t0:#3399ff;--t1:#ff4466}
-*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+/* 🔥 버그수정 3: 모바일 웹뷰 광클 시 텍스트 드래그(파란색 하이라이트) 및 돋보기 완벽 차단 */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0;user-select:none;-webkit-user-select:none;}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;overflow:hidden;background-image:radial-gradient(ellipse at 20% 10%,rgba(78,247,201,.05) 0%,transparent 50%),radial-gradient(ellipse at 80% 90%,rgba(255,94,135,.05) 0%,transparent 50%)}
+/* input 태그는 타이핑을 위해 선택 허용 */
+input{user-select:auto;-webkit-user-select:auto;}
+
 .page{display:none;flex-direction:column;align-items:center;height:100%;overflow-y:auto;overflow-x:hidden;padding:18px 12px 70px}
 .page.active{display:flex}
 .logo{font-family:'Black Han Sans',sans-serif;font-size:clamp(2rem,7vw,3.2rem);letter-spacing:.18em;background:linear-gradient(135deg,var(--a1),var(--a2),var(--a3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:glow 2.5s ease-in-out infinite alternate;margin-bottom:4px}
@@ -103,7 +107,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
 /* 터치 컨트롤 */
 #touch-ctrl{flex-shrink:0;background:rgba(8,8,21,.97);border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px;padding:8px;padding-bottom:max(8px,env(safe-area-inset-bottom));align-items:center;width:100%}
 .tc-row{display:flex;gap:5px;justify-content:center;width:100%}
-.tb{background:rgba(255,255,255,.08);border:1.5px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:manipulation;transition:background .1s;-webkit-tap-highlight-color:transparent}
+.tb{background:rgba(255,255,255,.08);border:1.5px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;touch-action:manipulation;transition:background .1s;-webkit-tap-highlight-color:transparent}
 .tb:active{background:rgba(255,255,255,.25)!important}
 .tb-hold{color:var(--a1);border-color:rgba(247,201,72,.5);font-family:'Black Han Sans',sans-serif;letter-spacing:.04em}
 .tb-drop{color:var(--a3);border-color:rgba(78,247,201,.5)}
@@ -118,7 +122,7 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
 .ov-title{font-family:'Black Han Sans',sans-serif;font-size:clamp(1.6rem,7vw,3.5rem);letter-spacing:.12em;text-align:center}
 .ov-sub{font-size:.85rem;color:var(--muted);text-align:center;max-width:280px}
 
-/* 🔥 게임오버 시 뒤에 있는 미니보드가 잘 보이도록 블러 제거 */
+/* 게임오버 시 뒤에 있는 미니보드가 잘 보이도록 블러 제거 */
 #ov-dead{background:rgba(8,8,21,.5);pointer-events:none;backdrop-filter:none;-webkit-backdrop-filter:none}
 #ov-dead>*{pointer-events:auto}
 
@@ -467,7 +471,6 @@ function initCanvases(){
 }
 function fixPageHeight(){document.getElementById('page-game').style.height=window.innerHeight+'px';}
 
-/* ════ 버그수정②: hold 리스너 1번만 등록 ════ */
 let holdListenersAdded=false;
 function initHoldListeners(){
   if(holdListenersAdded)return;
@@ -477,59 +480,50 @@ function initHoldListeners(){
   hc.addEventListener('click',()=>{if(isPlaying)doHold();});
 }
 
-/* ════ 터치 컨트롤 ════
-   상단: HOLD(=◄크기) | DROP(=▼크기) | ↺(►절반) | ↻(►절반)
-   하단: ◄ | ▼ | ►
-════ */
+/* ════ 터치 컨트롤 ════ */
 function buildTouchCtrl(){
   const vw=window.innerWidth;
-  // 하단 기준 크기 먼저 계산
   const botBw=Math.max(70,Math.min(120,Math.floor((vw-28)/3)));
   const botBh=Math.max(52,Math.floor(window.innerHeight*0.088));
-  
-  // 🔥 1열 전용 높이 추가 (예: 2열 높이의 80% 크기)
   const topBh=Math.floor(botBh * 0.8); 
-
-  const dropW=Math.round(botBw*0.72);   // ▼ 버튼 너비
-  const rotW=Math.round(botBw/2);       // ↺↻ 각각 너비 (►의 절반)
+  const dropW=Math.round(botBw*0.72);
+  const rotW=Math.round(botBw/2);
   const r1=document.getElementById('tc-row1'),r2=document.getElementById('tc-row2');
   r1.innerHTML='';r2.innerHTML='';
   r2.style.marginTop='10px';
 
-  // 상단: 탭 전용 (DAS 없음)
   function mkTap(text,cls,w,fn){
     const b=document.createElement('button');b.className='tb '+cls;b.textContent=text;
     b.style.cssText=`width:${w}px;height:${topBh}px;font-size:${Math.round(topBh*0.38)}px`; 
     b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying){ensureAudio();fn();}},{passive:false});
     r1.appendChild(b);
   }
-  // 하단: DAS 지원
-  function mkDAS(text,w,fn){
+  
+  // 🔥 버그수정 1: X축(좌우), Y축(아래) 타이머 분리로 DAS 멀티터치 충돌 해결
+  function mkDAS_X(text,w,fn){
     const b=document.createElement('button');b.className='tb';b.textContent=text;
     b.style.cssText=`width:${w}px;height:${botBh}px;font-size:${Math.round(botBh*0.42)}px`;
-    b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS(fn);},{passive:false});
-    b.addEventListener('touchend',e=>{e.preventDefault();stopDAS(fn);},{passive:false});
-    b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS(fn);},{passive:false});
+    b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS_X(fn);},{passive:false});
+    b.addEventListener('touchend',e=>{e.preventDefault();stopDAS_X(fn);},{passive:false});
+    b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS_X(fn);},{passive:false});
     r2.appendChild(b);
   }
-  function mkDownDAS(){
+  function mkDAS_Y(){
     const b=document.createElement('button');b.className='tb';b.textContent='▼';
     b.style.cssText=`width:${dropW}px;height:${botBh}px;font-size:${Math.round(botBh*0.38)}px`;
-    b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS(softDrop);},{passive:false});
-    b.addEventListener('touchend',e=>{e.preventDefault();stopDAS(softDrop);},{passive:false});
-    b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS(softDrop);},{passive:false});
+    b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS_Y(softDrop);},{passive:false});
+    b.addEventListener('touchend',e=>{e.preventDefault();stopDAS_Y(softDrop);},{passive:false});
+    b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS_Y(softDrop);},{passive:false});
     r2.appendChild(b);
   }
 
-  // 상단 행: HOLD(◄크기) | DROP(▼크기) | ↺(►절반) | ↻(►절반)
   mkTap('HOLD','tb-hold',botBw,doHold);
   mkTap('DROP','tb-drop',dropW,hardDrop);
   mkTap('↺','tb-ccw',rotW,rotateCCW);
   mkTap('↻','tb-cw',rotW,rotateCW);
-  // 하단 행: ◄ | ▼ | ►
-  mkDAS('◄',botBw,moveLeft);
-  mkDownDAS();
-  mkDAS('►',botBw,moveRight);
+  mkDAS_X('◄',botBw,moveLeft);
+  mkDAS_Y();
+  mkDAS_X('►',botBw,moveRight);
 }
 
 /* ════ 테트리스 엔진 ════ */
@@ -594,7 +588,6 @@ function clearLines(){
   else{combo=-1;document.getElementById('combo-row').style.display='none';}
   return n;
 }
-/* 🔥 수정됨: 가비지 증발 버그 완벽 픽스 (탑아웃 판정 추가) */
 function addGarbage(cnt){
   const hole=0|Math.random()*COLS;
   for(let i=0;i<cnt;i++){
@@ -604,7 +597,6 @@ function addGarbage(cnt){
     board.push(r);
   }
 }
-/* 🔥 수정됨: HOLD 직후 낙하 타이머 초기화 (dropTimer=0) */
 function doHold(){
   if(!canHold||isGameOver)return;
   if(holdType<0){holdType=curType;spawn();}
@@ -892,38 +884,35 @@ function connect(){
   ws.onerror=()=>setConn(false);
   ws.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch{return;}handleMsg(m);};
 }
+
+/* 🔥 버그수정 2: 연결 끊김 시 무한 정지 방지 (대기실 자동 복귀) */
 function setConn(ok){
   document.getElementById('conn-dot').className=ok?'ok':'';
-  if(!ok&&isPlaying&&!isPractice){isPlaying=false;isGameOver=true;if(rafId){cancelAnimationFrame(rafId);rafId=null;}stopBGM();toast('⚠ 연결이 끊겼어요. 재연결 중...');}
+  if(!ok&&isPlaying&&!isPractice){
+    isPlaying=false;isGameOver=true;if(rafId){cancelAnimationFrame(rafId);rafId=null;}stopBGM();
+    toast('⚠ 연결이 끊겼어요. 대기실로 이동합니다.');
+    setTimeout(returnToLobbyLocal, 1500); 
+  }
 }
-function getEntryName(){return document.getElementById('entry-name').value.trim()||sessionStorage.getItem('tetName')||'플레이어';}
 
-/* 🔥 버그수정 4: 연결 끊김 시 무반응(버튼 씹힘) 버그 수정 */
+function getEntryName(){return document.getElementById('entry-name').value.trim()||sessionStorage.getItem('tetName')||'플레이어';}
 function createRoom(){
   const name=getEntryName();if(!name){toast('닉네임을 입력해주세요!');return;}
   sessionStorage.setItem('tetName',name);
-  if(ws&&ws.readyState===WebSocket.OPEN){
-    ws.send(JSON.stringify({type:'create_room',name}));
-  }else{
-    toast('⚠ 서버 접속 중입니다. 잠시 후 다시 눌러주세요.');
-    if(!ws||ws.readyState===WebSocket.CLOSED)connect();
-  }
+  if(ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify({type:'create_room',name}));}
+  else{toast('⚠ 서버 접속 중입니다. 잠시 후 다시 눌러주세요.');if(!ws||ws.readyState===WebSocket.CLOSED)connect();}
 }
 function joinRoom(){
   const name=getEntryName();if(!name){toast('닉네임을 입력해주세요!');return;}
   const code=document.getElementById('join-code-inp').value.trim().toUpperCase();if(code.length!==6){toast('코드는 6자리예요!');return;}
   sessionStorage.setItem('tetName',name);
-  if(ws&&ws.readyState===WebSocket.OPEN){
-    ws.send(JSON.stringify({type:'join_room',name,code}));
-  }else{
-    toast('⚠ 서버 접속 중입니다. 잠시 후 다시 눌러주세요.');
-    if(!ws||ws.readyState===WebSocket.CLOSED)connect();
-  }
+  if(ws&&ws.readyState===WebSocket.OPEN){ws.send(JSON.stringify({type:'join_room',name,code}));}
+  else{toast('⚠ 서버 접속 중입니다. 잠시 후 다시 눌러주세요.');if(!ws||ws.readyState===WebSocket.CLOSED)connect();}
 }
 function leaveRoom(){if(ws)ws.close();showPage('entry');myReady=false;currentCode='';players={};document.getElementById('ready-btn').textContent='✔ 준비하기';document.getElementById('ready-btn').className='btn btn-c';}
 function returnToLobbyLocal(){
   stopSpec();
-  document.getElementById('confetti-wrap').innerHTML=''; // 🔥 유령 폭죽 청소 추가
+  document.getElementById('confetti-wrap').innerHTML='';
   ['ov-dead','ov-win','ov-spec'].forEach(id=>document.getElementById(id).classList.remove('show'));
   showPage('lobby');
 }
@@ -951,7 +940,7 @@ function handleMsg(m){
       players={};m.players.forEach(p=>players[p.id]=p);
       startLevel=m.settings?.startLevel||1;garbageMult=m.settings?.garbageMult||1;
       Object.keys(specBoards).forEach(k=>delete specBoards[k]);
-      // 🔥 버그수정 1: 게임 시작 시 랭킹, 채팅, 목표창 등 띄워져 있는 모든 팝업을 확실하게 닫아줌
+      // 🔥 방장이 시작하면 모든 팝업창 무조건 강제 닫기
       ['ov-dead','ov-win','ov-spec','ov-lb','ov-chat','ov-goal'].forEach(id=>document.getElementById(id).classList.remove('show'));
       spectatingId=null;chatUnread=0;updateChatBadge();
       showPage('game');
@@ -1005,7 +994,7 @@ function showWin(m){
   const tbl=document.getElementById('win-scores');tbl.innerHTML='';
   scores.forEach((p,i)=>{const r=document.createElement('div');r.className='score-row';r.innerHTML=`<div class="score-rank">${i+1}</div><div class="score-name">${escHtml(p.name)}${p.id===myId?' (나)':''}</div><div class="score-num">${(p.score||0).toLocaleString()}</div>`;tbl.appendChild(r);});
   
-  document.getElementById('confetti-wrap').innerHTML=''; // 🔥 유령 폭죽 청소 추가
+  document.getElementById('confetti-wrap').innerHTML='';
 
   if(isWin)spawnConfetti();
   document.getElementById('restart-btn').style.display=isHost?'inline-block':'none';
@@ -1062,7 +1051,7 @@ function renderLeaderboard(scores,mode){
   document.getElementById('lb-wrap').innerHTML=scores.map((s,i)=>`<div class="lb-row ${s.name===myName?'lb-me':''}"><div class="lb-rank">${medals[i]||i+1}</div><div class="lb-name">${escHtml(s.name)}${s.name===myName?' ★':''}</div>${isSprint?`<span class="lb-score" style="color:var(--a3)">${fmtTime(s.time)}</span>`:`<span class="lb-score">${(s.score||0).toLocaleString()}</span>`}<div class="lb-detail">${s.lines||0}L Lv${s.level||1}</div></div>`).join('');
 }
 
-/* ════ 키보드 & DAS (버그 수정됨) ════ */
+/* ════ 키보드 & DAS (🔥 버그수정 1: 멀티터치 타이머 완벽 분리) ════ */
 document.addEventListener('keydown',e=>{
   if(!isPlaying)return;
   switch(e.code){
@@ -1073,19 +1062,15 @@ document.addEventListener('keydown',e=>{
     case 'Escape':if(isPractice)exitPractice();break;
   }
 });
-const DAS_DEL=170,DAS_REP=50;let dasT=null,currentDASFn=null;
-function startDAS(fn){
-  currentDASFn=fn;
-  fn();clearTimeout(dasT);clearInterval(dasT);
-  dasT=setTimeout(()=>{dasT=setInterval(()=>{if(isPlaying)fn();},DAS_REP);},DAS_DEL);
-}
-function stopDAS(fn){
-  if(!fn||currentDASFn===fn){
-    clearTimeout(dasT);clearInterval(dasT);dasT=null;currentDASFn=null;
-  }
-}
+const DAS_DEL=170,DAS_REP=50;
+let dasTX=null,currFnX=null;
+let dasTY=null,currFnY=null;
+function startDAS_X(fn){currFnX=fn;fn();clearTimeout(dasTX);clearInterval(dasTX);dasTX=setTimeout(()=>{dasTX=setInterval(()=>{if(isPlaying)fn();},DAS_REP);},DAS_DEL);}
+function stopDAS_X(fn){if(!fn||currFnX===fn){clearTimeout(dasTX);clearInterval(dasTX);dasTX=null;currFnX=null;}}
+function startDAS_Y(fn){currFnY=fn;fn();clearTimeout(dasTY);clearInterval(dasTY);dasTY=setTimeout(()=>{dasTY=setInterval(()=>{if(isPlaying)fn();},DAS_REP);},DAS_DEL);}
+function stopDAS_Y(fn){if(!fn||currFnY===fn){clearTimeout(dasTY);clearInterval(dasTY);dasTY=null;currFnY=null;}}
 
-/* ════ 유틸 & 이벤트 리스너 ════ */
+/* ════ 유틸 & 공통 이벤트 리스너 ════ */
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function showPage(name){
   ['page-entry','page-lobby','page-game'].forEach(id=>{const el=document.getElementById(id);if(el){el.classList.remove('active');el.style.display='none';}});
@@ -1098,9 +1083,8 @@ function toast(msg){const el=document.getElementById('toast');el.textContent=msg
 function flashAtk(n,from){document.getElementById('atk-flash').classList.add('show');sfx('drop');toast(`💥 ${from}에게서 ${n}줄!`);setTimeout(()=>document.getElementById('atk-flash').classList.remove('show'),250);}
 function spawnConfetti(){const wrap=document.getElementById('confetti-wrap');wrap.innerHTML='';const cols=['#f7c948','#ff5e87','#4ef7c9','#a78bfa','#fff'];for(let i=0;i<90;i++){const p=document.createElement('div');p.className='cp';p.style.left=Math.random()*100+'vw';p.style.width=(5+Math.random()*7)+'px';p.style.height=(5+Math.random()*7)+'px';p.style.background=cols[0|Math.random()*cols.length];p.style.animationDuration=(2+Math.random()*3)+'s';p.style.animationDelay=(Math.random()*2)+'s';p.style.borderRadius=Math.random()>.5?'50%':'2px';wrap.appendChild(p);}}
 
-// 🔥 버그수정 2: 화면 회전이나 크기 변경 시, 무한 미끄러짐 방지를 위해 stopDAS() 강제 호출
-window.addEventListener('resize',()=>{clearTimeout(window._rt);window._rt=setTimeout(()=>{stopDAS(); fixPageHeight();if(document.getElementById('page-game').classList.contains('active'))initCanvases();},300);});
-window.addEventListener('orientationchange',()=>{setTimeout(()=>{stopDAS(); fixPageHeight();if(document.getElementById('page-game').classList.contains('active'))initCanvases();},400);});
+window.addEventListener('resize',()=>{clearTimeout(window._rt);window._rt=setTimeout(()=>{stopDAS_X();stopDAS_Y(); fixPageHeight();if(document.getElementById('page-game').classList.contains('active'))initCanvases();},300);});
+window.addEventListener('orientationchange',()=>{setTimeout(()=>{stopDAS_X();stopDAS_Y(); fixPageHeight();if(document.getElementById('page-game').classList.contains('active'))initCanvases();},400);});
 
 document.getElementById('entry-name').addEventListener('keydown',e=>{if(e.key==='Enter')createRoom();});
 document.getElementById('join-code-inp').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'');});
@@ -1108,12 +1092,12 @@ document.getElementById('join-code-inp').addEventListener('keydown',e=>{if(e.key
 document.addEventListener('touchstart',()=>{if(!audioCtx)ensureAudio();},{once:true,passive:true});
 document.addEventListener('click',()=>{if(!audioCtx)ensureAudio();},{once:true,passive:true});
 
-// 🔥 버그수정 3: 연습 모드도 백그라운드로 가면 꼬이지 않게 같이 종료 + DAS 강제 정지
+// 🔥 백그라운드 강제 종료
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
-    stopDAS(); // 화면이 가려지면 무조건 눌린 방향키 취소
+    stopDAS_X(); stopDAS_Y();
     if (isPlaying) {
-      triggerDead(); // 멀티, 연습 상관없이 강제 종료
+      triggerDead(); 
       toast(isPractice ? '⚠ 화면을 벗어나 연습이 종료되었습니다.' : '⚠ 게임 화면을 벗어나 탈락 처리되었습니다.');
     }
   }
