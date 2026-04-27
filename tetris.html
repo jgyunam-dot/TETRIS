@@ -1061,6 +1061,14 @@ document.addEventListener('click',()=>{if(!audioCtx)ensureAudio();},{once:true,p
 buildThemeGrid();applyTheme(themeKey);showRecords();
 initHoldListeners(); // 버그수정②: 1번만 등록
 connect();
+  // 🔥 백그라운드 무적 꼼수 방지 (화면 벗어나면 즉시 사망)
+document.addEventListener("visibilitychange", () => {
+  // 화면이 가려졌고(hidden), 현재 게임 중이며, 연습모드가 아닐 때
+  if (document.hidden && isPlaying && !isPractice) {
+    triggerDead(); // 즉시 게임 오버 처리
+    toast('⚠ 게임 화면을 벗어나 탈락 처리되었습니다.');
+  }
+});
 </script>
 </body>
 </html>
