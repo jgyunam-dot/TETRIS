@@ -93,26 +93,25 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
 #board-wrap{position:relative}
 #main-canvas{display:block;border:2px solid var(--border);border-radius:4px}
 #garb-badge{position:absolute;left:-22px;top:2px;font-family:'Black Han Sans',sans-serif;font-size:.6rem;color:var(--a2);background:rgba(255,94,135,.15);border:1px solid rgba(255,94,135,.4);border-radius:4px;padding:1px 4px;display:none}
-/* 타겟 선택 */
-#target-bar{display:none;flex-wrap:wrap;gap:5px;justify-content:center;padding:3px 5px;width:100%;flex-shrink:0}
-.target-btn{background:rgba(255,255,255,.07);border:1.5px solid var(--border);border-radius:6px;color:var(--muted);font-family:'Black Han Sans',sans-serif;font-size:.68rem;letter-spacing:.04em;padding:4px 10px;cursor:pointer;transition:all .15s;white-space:nowrap}
-.target-btn:active{transform:scale(.94)}
-.target-btn.active{border-color:var(--a2);color:var(--a2);background:rgba(255,94,135,.12)}
-.target-btn.random{border-color:var(--muted);color:var(--muted)}
-/* 상대방 미니보드 */
+
+/* 상대방 미니보드 & 타겟 하이라이트 */
 .opp-lbl{font-family:'Black Han Sans',sans-serif;font-size:.53rem;letter-spacing:.08em;padding:2px 5px;border-radius:3px;text-align:center}
-.mc{display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--card);border:1px solid var(--border);border-radius:5px;padding:3px;position:relative;cursor:pointer;transition:border-color .15s}
+.mc{display:flex;flex-direction:column;align-items:center;gap:2px;background:var(--card);border:1px solid var(--border);border-radius:5px;padding:3px;position:relative;cursor:pointer;transition:all .2s;}
 .mc:hover{border-color:var(--a3)}.mc.team0{border-top:2px solid var(--t0)}.mc.team1{border-top:2px solid var(--t1)}.mc.dead{opacity:.35}
-.mc-nm{font-size:.52rem;color:var(--muted);max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center}
+.mc.target-active {border-color:var(--a2) !important;box-shadow:0 0 10px rgba(255,94,135,0.8);transform:scale(1.05);z-index:10;}
+.mc.target-active .mc-nm {color:var(--a2);font-weight:700;}
+.mc-nm{font-size:.52rem;color:var(--muted);max-width:50px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;text-align:center;transition:color .2s;}
 .mc-sc{font-family:'Black Han Sans',sans-serif;font-size:.52rem;color:var(--a1)}
 .mc-dov{position:absolute;inset:0;background:rgba(8,8,21,.7);border-radius:5px;display:flex;align-items:center;justify-content:center;font-size:.58rem;color:var(--a2)}
-/* 터치 컨트롤 */
-#touch-ctrl{flex-shrink:0;background:rgba(8,8,21,.97);border-top:1px solid var(--border);display:flex;flex-direction:column;gap:5px;padding:6px 8px;padding-bottom:max(8px,env(safe-area-inset-bottom));align-items:center;width:100%}
+
+/* 터치 컨트롤 (3x2 배열) */
+#touch-ctrl{flex-shrink:0;background:rgba(8,8,21,.97);border-top:1px solid var(--border);display:flex;flex-direction:column;gap:6px;padding:8px;padding-bottom:max(8px,env(safe-area-inset-bottom));align-items:center;width:100%}
 .tc-row{display:flex;gap:6px;justify-content:center;width:100%}
 .tb{background:rgba(255,255,255,.08);border:1.5px solid var(--border);border-radius:8px;color:var(--text);cursor:pointer;display:flex;align-items:center;justify-content:center;user-select:none;-webkit-user-select:none;touch-action:manipulation;transition:background .1s;-webkit-tap-highlight-color:transparent}
 .tb:active{background:rgba(255,255,255,.25)!important}
 .tb-hold{color:var(--a1);border-color:rgba(247,201,72,.5);font-family:'Black Han Sans',sans-serif;letter-spacing:.04em}
 .tb-drop{color:var(--a3);border-color:rgba(78,247,201,.5)}
+
 /* 채팅 배지 */
 #chat-badge{position:absolute;top:-4px;right:-4px;background:var(--a2);border-radius:50%;width:14px;height:14px;font-size:.58rem;display:none;align-items:center;justify-content:center;font-weight:700;color:#fff}
 /* ── 오버레이 공통 ── */
@@ -319,7 +318,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
     <div class="hud-side"><div class="hud-lbl">NEXT</div><canvas id="next-canvas"></canvas></div>
   </div>
   <div id="board-zone">
-    <div id="target-bar"></div>
     <div id="board-container">
       <div id="opp-left" class="opp-side"></div>
       <div id="board-area">
@@ -473,17 +471,14 @@ const KK={JLSTZ:{'0-1':[[0,0],[-1,0],[-1,-1],[0,2],[-1,2]],'1-0':[[0,0],[1,0],[1
    레이아웃 & 캔버스
 ════════════════════════════════ */
 let CELL=20,SC=12;
-let MX=3; // 미니보드 크기 배율 기본값
+let MX=3; 
 function calcLayout(){
   const hE=document.getElementById('game-hud');
   const tE=document.getElementById('touch-ctrl');
-  const tgE=document.getElementById('target-bar');
   const hH=hE?hE.offsetHeight:80;
   const tcH=tE?tE.offsetHeight:115;
-  const tgH=tgE&&tgE.style.display!=='none'?tgE.offsetHeight:0;
-  const avH=window.innerHeight-hH-tcH-tgH-6;
+  const avH=window.innerHeight-hH-tcH-6;
   
-  // 양옆 미니보드 공간 계산
   let sideSpace = 0;
   if (!isPractice) {
     sideSpace = (currentMode === '2v2' || currentMode === '4v4') ? 100 : 50;
@@ -493,7 +488,7 @@ function calcLayout(){
   const cW=Math.floor((window.innerWidth - 10 - sideSpace)/COLS);
   CELL=Math.max(10,Math.min(30,cH,cW));
   SC=Math.max(8,Math.min(14,Math.floor(CELL*0.58)));
-  MX=Math.max(2, Math.min(4, Math.floor(CELL/4.5))); // 메인 보드에 비례해서 미니보드 크기 자동 조절
+  MX=Math.max(2, Math.min(4, Math.floor(CELL/4.5))); 
 }
 
 let mainCtx,holdCtx,nextCtx;
@@ -510,50 +505,44 @@ function initCanvases(){
 function fixPageHeight(){document.getElementById('page-game').style.height=window.innerHeight+'px';}
 
 /* ════════════════════════════════
-   터치 컨트롤
+   터치 컨트롤 (3x2 완벽 정렬)
 ════════════════════════════════ */
 function buildTouchCtrl(){
-  const vw=window.innerWidth;
-  const bw=Math.max(52,Math.min(90,Math.floor((vw-30)/4))); // 1줄에 4개 배치
-  const bh=Math.max(46,Math.min(60,Math.floor(window.innerHeight*0.076)));
+  const vw = window.innerWidth;
+  // 3개 버튼이 일정한 크기로 들어가도록 너비 계산 (패딩 및 간격 고려)
+  const bw = Math.max(70, Math.min(120, Math.floor((vw - 30) / 3))); 
+  const bh = Math.max(46, Math.min(65, Math.floor(window.innerHeight * 0.08)));
   
-  const r1=document.getElementById('tc-row1'), r2=document.getElementById('tc-row2');
-  r1.innerHTML=''; r2.innerHTML='';
+  const r1 = document.getElementById('tc-row1');
+  const r2 = document.getElementById('tc-row2');
+  r1.innerHTML = ''; r2.innerHTML = '';
   
-  function mkBtn(text,cls,rowEl,fn,das){
-    const b=document.createElement('button');b.className='tb '+cls;b.textContent=text;
-    b.style.cssText=`width:${bw}px;height:${bh}px;font-size:${Math.round(bh*0.38)}px`;
+  function mkBtn(text, cls, rowEl, fn, das) {
+    const b = document.createElement('button');
+    b.className = 'tb ' + cls;
+    b.textContent = text;
+    b.style.cssText = `width:${bw}px;height:${bh}px;font-size:${Math.round(bh*0.4)}px`;
+    
     if(das){
-      b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS(fn);},{passive:false});
-      b.addEventListener('touchend',e=>{e.preventDefault();stopDAS();},{passive:false});
-      b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS();},{passive:false});
-    }else{
-      b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying){ensureAudio();fn();}},{passive:false});
+      b.addEventListener('touchstart', e => { e.preventDefault(); if(isPlaying) startDAS(fn); }, {passive:false});
+      b.addEventListener('touchend', e => { e.preventDefault(); stopDAS(); }, {passive:false});
+      b.addEventListener('touchcancel', e => { e.preventDefault(); stopDAS(); }, {passive:false});
+    } else {
+      b.addEventListener('touchstart', e => { e.preventDefault(); if(isPlaying){ ensureAudio(); fn(); } }, {passive:false});
     }
     rowEl.appendChild(b);
-  }
-  
-  // 1줄: 우회전(↻), 하드드롭(▲▲), 좌회전(↺), HOLD
-  mkBtn('↻','',r1,rotateCW,false);
-  mkBtn('▲▲','tb-drop',r1,hardDrop,false);
-  mkBtn('↺','',r1,rotateCCW,false);
-  mkBtn('HOLD','tb-hold',r1,doHold,false);
-  
-  // 2줄: 좌(◄), 소프트드롭(▼), 우(►)
-  const lw=Math.max(70,Math.min(110,Math.floor((vw-24)/3))); // 1줄에 3개 배치
-  const lh=bh+10;
-  function mkDAS(text,fn){
-    const b=document.createElement('button');b.className='tb';b.textContent=text;b.style.cssText=`width:${lw}px;height:${lh}px;font-size:${Math.round(lh*0.42)}px`;
-    b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS(fn);},{passive:false});
-    b.addEventListener('touchend',e=>{e.preventDefault();stopDAS();},{passive:false});
-    b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS();},{passive:false});
     return b;
   }
-  const db=document.createElement('button');db.className='tb';db.textContent='▼';db.style.cssText=`width:${Math.round(lw*0.72)}px;height:${lh}px;font-size:${Math.round(lh*0.38)}px`;
-  db.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS(softDrop);},{passive:false});
-  db.addEventListener('touchend',e=>{e.preventDefault();stopDAS();},{passive:false});
-  db.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS();},{passive:false});
-  r2.appendChild(mkDAS('◄',moveLeft));r2.appendChild(db);r2.appendChild(mkDAS('►',moveRight));
+  
+  // 첫 번째 줄: HOLD, 하드드롭(▲▲), 우회전(↻)
+  mkBtn('HOLD', 'tb-hold', r1, doHold, false);
+  mkBtn('▲▲', 'tb-drop', r1, hardDrop, false);
+  mkBtn('↻', '', r1, rotateCW, false);
+  
+  // 두 번째 줄: 좌이동(◄), 소프트드롭(▼), 우이동(►)
+  mkBtn('◄', '', r2, moveLeft, true);
+  mkBtn('▼', '', r2, softDrop, true);
+  mkBtn('►', '', r2, moveRight, true);
 }
 
 /* ════════════════════════════════
@@ -694,7 +683,6 @@ function startPractice(goal){
   document.getElementById('opp-right').style.display='none';
   document.getElementById('garbage-bar').style.display='none';
   document.getElementById('garb-badge').style.display='none';
-  document.getElementById('target-bar').style.display='none';
   document.getElementById('practice-badge').style.display='block';
   document.getElementById('home-btn').style.display='inline-block';
   document.getElementById('chat-btn').style.display='none';
@@ -818,33 +806,22 @@ function renderNext(){if(!nextCtx)return;const bg=THEMES[themeKey].boardBg;nextC
 function updGB(){if(isPractice)return;const bar=document.getElementById('garbage-bar');bar.style.height=Math.min(pendingGarbage*(ROWS*CELL/12),ROWS*CELL)+'px';const badge=document.getElementById('garb-badge');if(pendingGarbage>0){badge.textContent='⚠'+pendingGarbage;badge.style.display='block';}else badge.style.display='none';}
 
 /* ════════════════════════════════
-   타겟 선택 UI
+   타겟 지정 시스템 (미니보드 터치)
 ════════════════════════════════ */
 let currentTarget=null;
-function buildTargetBar(pArr){
-  const bar=document.getElementById('target-bar');bar.innerHTML='';
-  const enemies=pArr.filter(p=>p.id!==myId&&!p.dead);
-  if(enemies.length===0){bar.style.display='none';return;}
-  bar.style.display='flex';
-  const rnd=document.createElement('button');rnd.className='target-btn random'+(currentTarget===null?' active':'');rnd.textContent='🎲 랜덤';
-  rnd.onclick=()=>setTarget(null);bar.appendChild(rnd);
-  enemies.forEach(p=>{
-    const b=document.createElement('button');b.className='target-btn'+(currentTarget===p.id?' active':'');b.id='tgt-'+p.id;b.textContent=p.name;
-    b.onclick=()=>setTarget(p.id);bar.appendChild(b);
-  });
-}
 function setTarget(id){
   currentTarget=id;
-  document.querySelectorAll('.target-btn').forEach(b=>{b.classList.remove('active');});
-  const btn=id?document.getElementById('tgt-'+id):document.querySelector('.target-btn.random');
-  if(btn)btn.classList.add('active');
+  document.querySelectorAll('.mc').forEach(w=>w.classList.remove('target-active'));
+  
+  if(id){
+    const w=document.getElementById('mc-'+id);
+    if(w)w.classList.add('target-active');
+    toast(`🎯 타겟: ${players[id]?.name}`);
+  }else{
+    toast('🎲 타겟: 랜덤');
+  }
+  
   if(ws&&ws.readyState===WebSocket.OPEN)ws.send(JSON.stringify({type:'set_target',targetId:id}));
-}
-function removeTargetBtn(id){
-  const b=document.getElementById('tgt-'+id);if(b)b.remove();
-  if(currentTarget===id){currentTarget=null;const rnd=document.querySelector('.target-btn.random');if(rnd)rnd.classList.add('active');}
-  const remaining=document.querySelectorAll('.target-btn:not(.random)');
-  if(remaining.length===0)document.getElementById('target-bar').style.display='none';
 }
 
 /* ════════════════════════════════
@@ -855,7 +832,7 @@ function buildOppBoards(pArr){
   const leftSec = document.getElementById('opp-left'); leftSec.innerHTML='';
   const rightSec = document.getElementById('opp-right'); rightSec.innerHTML='';
   
-  const isTeam = currentMode==='2v2'||currentMode==='4v4'; // 1v1은 무조건 왼쪽으로 몰기 위함
+  const isTeam = currentMode==='2v2'||currentMode==='4v4'; 
   
   if(isTeam){
     const myTeam = players[myId]?.team;
@@ -870,7 +847,6 @@ function buildOppBoards(pArr){
       teamMembers.forEach(p => sec.appendChild(mkMC(p, ti)));
     });
   } else {
-    // FFA 또는 1v1 모드: 모든 적을 왼쪽에 표시
     const enemies = pArr.filter(p => p.id !== myId);
     if(enemies.length) {
       const lbl = document.createElement('div');
@@ -881,9 +857,38 @@ function buildOppBoards(pArr){
     }
   }
 }
-function mkMC(p,team){const w=document.createElement('div');w.className='mc'+(team>=0?` team${team}`:'');w.id='mc-'+p.id;const cv=document.createElement('canvas');cv.width=COLS*MX;cv.height=ROWS*MX;cv.id='mv-'+p.id;const nm=document.createElement('div');nm.className='mc-nm';nm.id='mn-'+p.id;nm.textContent=p.name;const sc=document.createElement('div');sc.className='mc-sc';sc.id='ms-'+p.id;sc.textContent='0';w.appendChild(cv);w.appendChild(nm);w.appendChild(sc);function trySpec(){if(isGameOver&&!isPractice)startSpec(p.id,p.name);}cv.addEventListener('click',trySpec);cv.addEventListener('touchend',e=>{e.preventDefault();trySpec();},{passive:false});return w;}
+function mkMC(p,team){
+  const w=document.createElement('div');w.className='mc'+(team>=0?` team${team}`:'');w.id='mc-'+p.id;
+  if(currentTarget === p.id) w.classList.add('target-active'); // 초기화 시 타겟 유지
+  
+  const cv=document.createElement('canvas');cv.width=COLS*MX;cv.height=ROWS*MX;cv.id='mv-'+p.id;
+  const nm=document.createElement('div');nm.className='mc-nm';nm.id='mn-'+p.id;nm.textContent=p.name;
+  const sc=document.createElement('div');sc.className='mc-sc';sc.id='ms-'+p.id;sc.textContent='0';
+  
+  w.appendChild(cv);w.appendChild(nm);w.appendChild(sc);
+  
+  // 미니보드 터치/클릭 이벤트
+  function onBoardTap(){
+    if(isGameOver&&!isPractice){
+      startSpec(p.id,p.name);
+    }else if(isPlaying&&!isPractice&&!p.dead){
+      if(currentTarget===p.id) setTarget(null); // 이미 타겟이면 해제 (랜덤)
+      else setTarget(p.id); // 아니면 새로운 타겟으로 고정
+    }
+  }
+  
+  cv.addEventListener('click',onBoardTap);
+  cv.addEventListener('touchend',e=>{e.preventDefault();onBoardTap();},{passive:false});
+  return w;
+}
 function updateMini(id,bd,sc2,name){if(!specBoards[id])specBoards[id]={};specBoards[id]={board:bd,score:sc2,lines:specBoards[id]?.lines||0,level:specBoards[id]?.level||1,name:name||players[id]?.name||id};const cv=document.getElementById('mv-'+id);if(!cv)return;const ctx=cv.getContext('2d');ctx.fillStyle=THEMES[themeKey].boardBg;ctx.fillRect(0,0,cv.width,cv.height);for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){const ci=bd[r*COLS+c];if(!ci)continue;ctx.fillStyle=COLORS[ci];ctx.fillRect(c*MX+.5,r*MX+.5,MX-1,MX-1);}const el=document.getElementById('ms-'+id);if(el)el.textContent=(sc2||0)>9999?Math.floor((sc2||0)/1000)+'K':(sc2||0);if(spectatingId===id)drawSpec(bd,sc2,specBoards[id]?.lines,specBoards[id]?.level);}
-function markDeadMini(id){const w=document.getElementById('mc-'+id);if(!w)return;w.classList.add('dead');const ov=document.createElement('div');ov.className='mc-dov';ov.textContent='💀';w.appendChild(ov);removeTargetBtn(id);}
+function markDeadMini(id){
+  const w=document.getElementById('mc-'+id);if(!w)return;
+  w.classList.add('dead');
+  w.classList.remove('target-active'); 
+  const ov=document.createElement('div');ov.className='mc-dov';ov.textContent='💀';w.appendChild(ov);
+  if(currentTarget===id) setTarget(null); 
+}
 let spectatingId=null,specCtx=null,specCELL=16;
 function getSpecCell(){const byH=Math.floor(window.innerHeight*0.66/ROWS);const byW=Math.floor(window.innerWidth*0.84/COLS);return Math.max(12,Math.min(26,byH,byW));}
 function startSpec(id,name){spectatingId=id;document.getElementById('spec-name').textContent=`👁 ${name||id} 관전 중`;specCELL=getSpecCell();const sc=document.getElementById('spec-canvas');sc.width=COLS*specCELL;sc.height=ROWS*specCELL;specCtx=sc.getContext('2d');const bd=specBoards[id];if(bd)drawSpec(bd.board,bd.score,bd.lines,bd.level);buildSpecSwitcher();document.getElementById('ov-spec').classList.add('show');}
