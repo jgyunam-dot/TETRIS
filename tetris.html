@@ -481,7 +481,7 @@ function calcLayout(){
   
   let sideSpace = 0;
   if (!isPractice) {
-    sideSpace = (currentMode === '2v2' || currentMode === '4v4') ? 100 : 50;
+    sideSpace = (currentMode === '1v1') ? 60 : 110; 
   }
 
   const cH=Math.floor(avH/ROWS);
@@ -848,11 +848,24 @@ function buildOppBoards(pArr){
   } else {
     const enemies = pArr.filter(p => p.id !== myId);
     if(enemies.length) {
-      const lbl = document.createElement('div');
-      lbl.className = `opp-lbl`;
-      lbl.textContent = currentMode==='1v1' ? '상대방' : '다른 유저';
-      leftSec.appendChild(lbl);
-      enemies.forEach(p => leftSec.appendChild(mkMC(p, -1)));
+      // 개인전 8명일 때 세로로 너무 길어지지 않도록 양쪽으로 분할 배치
+      const mid = Math.ceil(enemies.length / 2);
+      const leftEnemies = enemies.slice(0, mid);
+      const rightEnemies = enemies.slice(mid);
+      
+      const lblL = document.createElement('div');
+      lblL.className = `opp-lbl`;
+      lblL.textContent = currentMode==='1v1' ? '상대방' : '유저';
+      leftSec.appendChild(lblL);
+      leftEnemies.forEach(p => leftSec.appendChild(mkMC(p, -1)));
+      
+      if(rightEnemies.length > 0) {
+        const lblR = document.createElement('div');
+        lblR.className = `opp-lbl`;
+        lblR.textContent = '유저';
+        rightSec.appendChild(lblR);
+        rightEnemies.forEach(p => rightSec.appendChild(mkMC(p, -1)));
+      }
     }
   }
 }
@@ -1007,6 +1020,7 @@ function leaveRoom(){
 }
 
 function returnToLobbyLocal(){
+  stopSpec(); // 화면을 넘어갈 때 켜져있는 관전이 있다면 강제로 꺼줍니다.
   ['ov-dead','ov-win','ov-spec'].forEach(id=>document.getElementById(id).classList.remove('show'));
   showPage('lobby');
 }
