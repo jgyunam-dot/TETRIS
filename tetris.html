@@ -214,7 +214,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
 <div id="tspin-notif"></div>
 <div id="perfect-notif">✨ PERFECT CLEAR!</div>
 
-<!-- ═══ 진입 페이지 ═══ -->
 <div id="page-entry" class="page active">
   <div class="logo">TETRIS</div>
   <div class="sub">멀티플레이어</div>
@@ -222,12 +221,10 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
     <div class="card-title">👤 닉네임</div>
     <input class="inp" id="entry-name" maxlength="12" placeholder="닉네임 입력...">
   </div>
-  <!-- 전적 -->
   <div class="card" id="entry-rec-card" style="display:none">
     <div class="card-title">📊 내 전적</div>
     <div class="rec-row"><div class="rec-big" id="entry-rec-text">0승 0패</div><div class="rec-wr" id="entry-rec-wr">승률 0%</div></div>
   </div>
-  <!-- 방 만들기 / 참가 -->
   <div class="row" style="margin-top:4px">
     <button class="btn btn-y" onclick="createRoom()">🏠 방 만들기</button>
   </div>
@@ -248,10 +245,8 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
   </div>
 </div>
 
-<!-- ═══ 로비 ═══ -->
 <div id="page-lobby" class="page">
   <div class="logo" style="font-size:clamp(1.6rem,6vw,2.8rem)">TETRIS</div>
-  <!-- 방 코드 -->
   <div class="card">
     <div class="card-title">🔑 방 코드 — 친구에게 공유하세요!</div>
     <div class="room-code-box">
@@ -259,7 +254,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
       <button class="room-copy-btn" onclick="copyCode()">📋 복사</button>
     </div>
   </div>
-  <!-- 게임 모드 -->
   <div class="card" id="mode-card">
     <div class="card-title">🎮 게임 모드 (방장만)</div>
     <div class="mode-grid">
@@ -269,7 +263,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
       <div class="mode-btn" data-mode="4v4" onclick="selectMode('4v4')">4 vs 4<span class="msub">8명 팀전</span></div>
     </div>
   </div>
-  <!-- 게임 설정 (방장만) -->
   <div class="card" id="settings-card">
     <div class="card-title">⚙️ 게임 설정 (방장만)</div>
     <div class="settings-row">
@@ -291,7 +284,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
       </div>
     </div>
   </div>
-  <!-- 플레이어 목록 -->
   <div class="card">
     <div class="card-title">🏟 대기 중인 플레이어</div>
     <div id="players-list"></div>
@@ -305,7 +297,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
   </div>
 </div>
 
-<!-- ═══ 게임 ═══ -->
 <div id="page-game">
   <div id="practice-badge">연습 모드</div>
   <div id="goal-bar"></div>
@@ -332,7 +323,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
       <div id="garbage-bar"></div>
       <div id="board-wrap"><canvas id="main-canvas"></canvas><div id="garb-badge"></div></div>
     </div>
-    <!-- 타겟 선택 -->
     <div id="target-bar"></div>
     <div id="opp-section"></div>
   </div>
@@ -342,7 +332,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
   </div>
 </div>
 
-<!-- ═══ 오버레이 ═══ -->
 <div class="overlay" id="ov-dead">
   <div class="ov-title dead-title">💀 GAME OVER</div>
   <div class="ov-sub" id="dead-score"></div>
@@ -356,7 +345,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
   <div class="score-table" id="win-scores"></div>
   <button class="btn btn-y" id="restart-btn" style="display:none;margin-top:8px" onclick="requestRestart()">↺ 다시 시작</button>
 </div>
-<!-- 연습 게임오버 -->
 <div class="overlay" id="ov-practice">
   <div class="ov-title" style="background:linear-gradient(135deg,#bb88ff,var(--a3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text" id="prac-title">🎮 연습 완료!</div>
   <div class="prac-stats">
@@ -380,7 +368,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
     <button class="btn btn-ghost btn-sm" onclick="exitPractice()">← 홈</button>
   </div>
 </div>
-<!-- 목표 선택 -->
 <div class="overlay" id="ov-goal">
   <div class="ov-title" style="font-size:clamp(1.4rem,5vw,2rem);color:var(--a3)">🎯 연습 목표 선택</div>
   <div class="goal-grid">
@@ -391,7 +378,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
   </div>
   <button class="btn btn-ghost btn-sm" onclick="document.getElementById('ov-goal').classList.remove('show')">취소</button>
 </div>
-<!-- 관전 -->
 <div class="overlay" id="ov-spec">
   <div class="spec-hdr">
     <div id="spec-name">관전 중</div>
@@ -405,7 +391,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
   </div>
   <div id="spec-switcher"></div>
 </div>
-<!-- 채팅 -->
 <div class="overlay" id="ov-chat" style="padding:0">
   <div id="chat-panel">
     <div id="chat-header">
@@ -419,13 +404,11 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
     </div>
   </div>
 </div>
-<!-- 리더보드 -->
 <div class="overlay" id="ov-lb">
   <div style="display:flex;align-items:center;gap:10px;width:100%;max-width:440px;justify-content:space-between">
     <div class="ov-title" style="font-size:clamp(1.3rem,5vw,2rem);color:var(--a1)">🏆 랭킹</div>
     <button class="btn btn-ghost btn-sm" onclick="openLeaderboard()">🔄</button>
   </div>
-  <!-- 탭 -->
   <div id="lb-tabs" style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center;width:100%;max-width:440px">
     <button class="lb-tab active" data-mode="sprint" onclick="switchLbTab('sprint')">⚡ 스프린트</button>
     <button class="lb-tab" data-mode="blitz" onclick="switchLbTab('blitz')">⏱ 블리츠</button>
@@ -551,14 +534,13 @@ function lockPiece(){
   const sh=getShape(curType,curRot);let topOut=false;
   for(let dr=0;dr<sh.length;dr++) for(let dc=0;dc<sh[dr].length;dc++){if(!sh[dr][dc])continue;const br=curY+dr,bc=curX+dc;if(br<0){topOut=true;continue;}if(br<ROWS)board[br][bc]=PC[curType];}
   const tspin=detectTspin();const cl=clearLines();
-  // 퍼펙트 클리어 체크
   let isPerfect=cl>0&&isPerfectClear();
   if(!isPractice&&pendingGarbage>0){const ab=Math.min(pendingGarbage,cl);pendingGarbage-=ab;if(pendingGarbage>0){addGarbage(pendingGarbage);pendingGarbage=0;}updGB();}
   let atk=0,isSpecial=false;
   if(tspin==='full'&&cl>0){atk=[0,2,4,6][cl]||6;isSpecial=true;showTspinNotif('full',cl);}
   else if(tspin==='mini'&&cl>0){atk=[0,0,1][cl]||1;showTspinNotif('mini',cl);}
   else{atk=[0,0,1,3,6][Math.min(cl,4)];if(cl===4)isSpecial=true;}
-  if(isPerfect){atk=Math.max(atk,6);showPerfectNotif();} // 퍼펙트 클리어 보너스
+  if(isPerfect){atk=Math.max(atk,6);showPerfectNotif();} 
   if(isSpecial){if(b2bActive)atk++;b2bActive=true;}else if(cl>0)b2bActive=false;
   document.getElementById('b2b-row').style.display=b2bActive?'flex':'none';
   if(!isPractice&&atk>0&&ws)ws.send(JSON.stringify({type:'attack',lines:atk}));
@@ -653,7 +635,7 @@ function startPracticeTimer(){
   if(practiceGoal==='blitz'){
     practiceIntervalId=setInterval(()=>{
       practiceElapsed++;updateGoalBar();
-      if(practiceElapsed>=120){triggerDead();}// 2분 종료
+      if(practiceElapsed>=120){triggerDead();}
     },1000);
   } else {
     practiceIntervalId=setInterval(()=>{practiceElapsed++;updateGoalBar();},1000);
@@ -720,10 +702,9 @@ function exitPractice(){
 async function submitScore(){
   const name=document.getElementById('pr-name').value.trim()||'익명';
   const btn=document.getElementById('pr-submit-btn');btn.disabled=true;btn.textContent='저장 중...';
-  // 스프린트는 time(초) 전송, 나머지는 score
-  const modeKey=practiceGoal==='score'?'score':practiceGoal; // 'sprint','blitz','score','marathon'
+  const modeKey=practiceGoal==='score'?'score':practiceGoal; 
   const payload={name,score,lines,level,mode:modeKey};
-  if(modeKey==='sprint')payload.time=practiceElapsed; // 걸린 시간(초)
+  if(modeKey==='sprint')payload.time=practiceElapsed; 
   try{
     const res=await fetch('/scores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const data=await res.json();
@@ -733,7 +714,6 @@ async function submitScore(){
       msg.textContent=`🏆 ${modeName} ${data.rank}위 등록 완료!`;
       msg.style.display='block';btn.textContent='등록됨 ✓';
       sessionStorage.setItem('tetName',name);showRecords();
-      // 해당 탭으로 랭킹 열기
       currentLbTab=modeKey;
     } else {btn.textContent='다시 시도';btn.disabled=false;}
   }catch{
@@ -773,7 +753,6 @@ function buildTargetBar(pArr){
   const enemies=pArr.filter(p=>p.id!==myId&&!p.dead);
   if(enemies.length===0){bar.style.display='none';return;}
   bar.style.display='flex';
-  // 랜덤 버튼
   const rnd=document.createElement('button');rnd.className='target-btn random'+(currentTarget===null?' active':'');rnd.textContent='🎲 랜덤';
   rnd.onclick=()=>setTarget(null);bar.appendChild(rnd);
   enemies.forEach(p=>{
@@ -842,7 +821,6 @@ function addChatMsg(name,text,sys=false){
   msgs.appendChild(div);
   if(msgs.children.length>100)msgs.firstChild.remove();
   msgs.scrollTop=msgs.scrollHeight;
-  // 채팅창 닫혀있으면 배지
   if(!document.getElementById('ov-chat').classList.contains('show')&&!sys){chatUnread++;updateChatBadge();}
 }
 function updateChatBadge(){const badge=document.getElementById('chat-badge');if(chatUnread>0){badge.textContent=chatUnread>9?'9+':chatUnread;badge.style.display='flex';}else badge.style.display='none';}
@@ -884,7 +862,6 @@ function connect(){
 function setConn(ok){
   document.getElementById('conn-dot').className=ok?'ok':'';
   if(!ok&&isPlaying&&!isPractice){
-    // 멀티 게임 중 연결 끊김 → 게임 중단 후 홈으로
     isPlaying=false;isGameOver=true;
     if(rafId){cancelAnimationFrame(rafId);rafId=null;}
     stopBGM();
@@ -911,7 +888,6 @@ function leaveRoom(){
   if(ws){ws.close();}
   showPage('entry');
   myReady=false;currentCode='';players={};
-  // 준비 버튼 UI 초기화
   document.getElementById('ready-btn').textContent='✔ 준비하기';
   document.getElementById('ready-btn').className='btn btn-c';
 }
@@ -930,7 +906,6 @@ function handleMsg(m){
       document.getElementById('lobby-room-code').textContent=m.code;
       applyServerSettings(m.settings||{});
       showPage('lobby');renderLobby(m.players);updateModeUI(m.mode);updateHostUI();
-      // 채팅 내역 복원
       if(m.chat?.length){const msgs=document.getElementById('chat-messages');msgs.innerHTML='';m.chat.forEach(c=>addChatMsg(c.name,c.text));}
       break;
 
@@ -946,7 +921,6 @@ function handleMsg(m){
     case 'game_start':
       currentMode=m.mode;currentPhase='playing';currentTarget=null;
       players={};m.players.forEach(p=>players[p.id]=p);
-      // 서버 설정 적용
       startLevel=m.settings?.startLevel||1;garbageMult=m.settings?.garbageMult||1;
       Object.keys(specBoards).forEach(k=>delete specBoards[k]);
       ['ov-dead','ov-win','ov-spec'].forEach(id=>document.getElementById(id).classList.remove('show'));
@@ -995,7 +969,6 @@ function handleMsg(m){
 
 function applyServerSettings(s){
   startLevel=s.startLevel||1;garbageMult=s.garbageMult||1;
-  // 버튼 UI 업데이트
   document.querySelectorAll('#level-btns .sopt').forEach(b=>b.classList.toggle('active',parseInt(b.dataset.val)===startLevel));
   document.querySelectorAll('#mult-btns .sopt').forEach(b=>b.classList.toggle('active',parseFloat(b.dataset.val)===garbageMult));
 }
@@ -1033,7 +1006,7 @@ function renderLobby(pArr){
     const vs=document.createElement('div');vs.className='vs-lbl';vs.textContent='VS';
     pArr.forEach((p,i)=>{(p.team===0?c0:c1).appendChild(mkPI(p,i));});
     wr.appendChild(c0);wr.appendChild(vs);wr.appendChild(c1);list.appendChild(wr);
-    document.getElementById('swap-btn').style.display=isHost?'none':'inline-block';
+    document.getElementById('swap-btn').style.display='inline-block'; // 수정: 방장도 버튼 표시
   } else {
     pArr.forEach((p,i)=>list.appendChild(mkPI(p,i)));
     document.getElementById('swap-btn').style.display='none';
@@ -1057,7 +1030,7 @@ function setMult(v){if(!isHost)return;if(ws)ws.send(JSON.stringify({type:'set_se
 /* ════════════════════════════════
    리더보드
 ════════════════════════════════ */
-let currentLbTab='sprint'; // 현재 선택된 탭
+let currentLbTab='sprint'; 
 
 async function openLeaderboard(){
   document.getElementById('ov-lb').classList.add('show');
@@ -1133,17 +1106,16 @@ function stopDAS(){clearTimeout(dasT);clearInterval(dasT);dasT=null;}
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 
 function showPage(name){
-  // 모든 페이지 숨기기 (inline style 포함 완전히 리셋)
   ['page-entry','page-lobby','page-game'].forEach(id=>{
     const el=document.getElementById(id);
     if(el){el.classList.remove('active');el.style.display='none';}
   });
   const pg=document.getElementById('page-'+name);
   if(!pg)return;
-  pg.style.display=''; // inline style 제거 → CSS에 위임
+  pg.style.display='';
   pg.classList.add('active');
   if(name==='game'){
-    pg.style.display='flex'; // #page-game은 .page 클래스가 없어서 직접 설정
+    pg.style.display='flex';
     fixPageHeight();
   }
 }
