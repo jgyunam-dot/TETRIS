@@ -200,7 +200,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
 <div id="tspin-notif"></div>
 <div id="perfect-notif">✨ PERFECT CLEAR!</div>
 
-<!-- ═══ 진입 ═══ -->
 <div id="page-entry" class="page active">
   <div class="logo">TETRIS</div>
   <div class="sub">멀티플레이어</div>
@@ -232,7 +231,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
   </div>
 </div>
 
-<!-- ═══ 로비 ═══ -->
 <div id="page-lobby" class="page">
   <div class="logo" style="font-size:clamp(1.6rem,6vw,2.8rem)">TETRIS</div>
   <div class="card">
@@ -285,18 +283,15 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
   </div>
 </div>
 
-<!-- ═══ 게임 ═══ -->
 <div id="page-game">
   <div id="practice-badge">연습 모드</div>
   <div id="goal-bar"></div>
   <div class="game-topbar">
     <button class="topbar-btn" id="chat-btn" onclick="openChat()" style="display:none">💬<div id="chat-badge"></div></button>
     <button class="topbar-btn" id="home-btn" style="display:none;color:#bb88ff;border-color:#bb88ff" onclick="exitPractice()">← 홈</button>
-    <!-- 음악 버튼: 홈 버튼 아래 배치 (NEXT 캔버스 가림 방지) -->
     <button class="topbar-btn" id="music-btn" onclick="toggleBGM()">🔇</button>
   </div>
   <div id="game-hud">
-    <!-- hold-canvas: 리스너는 initHoldListeners()에서 1번만 등록 (버그수정②) -->
     <div class="hud-side"><div class="hud-lbl">HOLD</div><canvas id="hold-canvas" style="cursor:pointer"></canvas></div>
     <div class="hud-mid">
       <div class="hstat"><div class="sval" id="sv-score">0</div><div class="slbl">SCORE</div></div>
@@ -325,7 +320,6 @@ html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto S
   </div>
 </div>
 
-<!-- ═══ 오버레이 ═══ -->
 <div class="overlay" id="ov-dead">
   <div class="ov-title dead-title">💀 GAME OVER</div>
   <div class="ov-sub" id="dead-score"></div>
@@ -490,7 +484,7 @@ function buildTouchCtrl(){
   const botBw=Math.max(70,Math.min(120,Math.floor((vw-28)/3)));
   const botBh=Math.max(52,Math.floor(window.innerHeight*0.088));
   
-  // 🔥 1열 전용 높이 추가 (예: 2열 높이의 70% 크기)
+  // 🔥 1열 전용 높이 추가 (예: 2열 높이의 80% 크기)
   const topBh=Math.floor(botBh * 0.8); 
 
   const dropW=Math.round(botBw*0.72);   // ▼ 버튼 너비
@@ -502,27 +496,25 @@ function buildTouchCtrl(){
   // 상단: 탭 전용 (DAS 없음)
   function mkTap(text,cls,w,fn){
     const b=document.createElement('button');b.className='tb '+cls;b.textContent=text;
-    // 🔥 여기를 botBh 대신 topBh로 변경! (버튼 높이랑 글자 크기 모두 줄어듦)
     b.style.cssText=`width:${w}px;height:${topBh}px;font-size:${Math.round(topBh*0.38)}px`; 
     b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying){ensureAudio();fn();}},{passive:false});
     r1.appendChild(b);
   }
-// ... (아래는 그대로 유지) ...
-  // 하단: DAS 지원
+  // 하단: DAS 지원 (수정됨)
   function mkDAS(text,w,fn){
     const b=document.createElement('button');b.className='tb';b.textContent=text;
     b.style.cssText=`width:${w}px;height:${botBh}px;font-size:${Math.round(botBh*0.42)}px`;
     b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS(fn);},{passive:false});
-    b.addEventListener('touchend',e=>{e.preventDefault();stopDAS();},{passive:false});
-    b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS();},{passive:false});
+    b.addEventListener('touchend',e=>{e.preventDefault();stopDAS(fn);},{passive:false});
+    b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS(fn);},{passive:false});
     r2.appendChild(b);
   }
   function mkDownDAS(){
     const b=document.createElement('button');b.className='tb';b.textContent='▼';
     b.style.cssText=`width:${dropW}px;height:${botBh}px;font-size:${Math.round(botBh*0.38)}px`;
     b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying)startDAS(softDrop);},{passive:false});
-    b.addEventListener('touchend',e=>{e.preventDefault();stopDAS();},{passive:false});
-    b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS();},{passive:false});
+    b.addEventListener('touchend',e=>{e.preventDefault();stopDAS(softDrop);},{passive:false});
+    b.addEventListener('touchcancel',e=>{e.preventDefault();stopDAS(softDrop);},{passive:false});
     r2.appendChild(b);
   }
 
@@ -599,8 +591,26 @@ function clearLines(){
   else{combo=-1;document.getElementById('combo-row').style.display='none';}
   return n;
 }
-function addGarbage(cnt){const hole=0|Math.random()*COLS;for(let i=0;i<cnt;i++){board.shift();const r=new Array(COLS).fill(8);r[hole]=0;board.push(r);}}
-function doHold(){if(!canHold||isGameOver)return;if(holdType<0){holdType=curType;spawn();}else{const t=holdType;holdType=curType;curType=t;curRot=0;curX=3;curY=-1;lastWasRot=false;if(!isValid(curType,curX,curY,curRot)){triggerDead();return;}}canHold=false;isLocking=false;lockTimer=0;sfx('hold');actionCount++;}
+/* 🔥 수정됨: 가비지 증발 버그 완벽 픽스 (탑아웃 판정 추가) */
+function addGarbage(cnt){
+  const hole=0|Math.random()*COLS;
+  for(let i=0;i<cnt;i++){
+    if(board[0].some(c=>c!==0)){triggerDead();return;}
+    board.shift();
+    const r=new Array(COLS).fill(8);r[hole]=0;
+    board.push(r);
+  }
+}
+/* 🔥 수정됨: HOLD 직후 낙하 타이머 초기화 (dropTimer=0) */
+function doHold(){
+  if(!canHold||isGameOver)return;
+  if(holdType<0){holdType=curType;spawn();}
+  else{
+    const t=holdType;holdType=curType;curType=t;curRot=0;curX=3;curY=-1;lastWasRot=false;
+    if(!isValid(curType,curX,curY,curRot)){triggerDead();return;}
+  }
+  canHold=false;isLocking=false;lockTimer=0;dropTimer=0;sfx('hold');actionCount++;
+}
 
 function triggerDead(){
   if(isGameOver)return;
@@ -1021,7 +1031,7 @@ function renderLeaderboard(scores,mode){
   document.getElementById('lb-wrap').innerHTML=scores.map((s,i)=>`<div class="lb-row ${s.name===myName?'lb-me':''}"><div class="lb-rank">${medals[i]||i+1}</div><div class="lb-name">${escHtml(s.name)}${s.name===myName?' ★':''}</div>${isSprint?`<span class="lb-score" style="color:var(--a3)">${fmtTime(s.time)}</span>`:`<span class="lb-score">${(s.score||0).toLocaleString()}</span>`}<div class="lb-detail">${s.lines||0}L Lv${s.level||1}</div></div>`).join('');
 }
 
-/* ════ 키보드 ════ */
+/* ════ 키보드 & DAS (버그 수정됨) ════ */
 document.addEventListener('keydown',e=>{
   if(!isPlaying)return;
   switch(e.code){
@@ -1032,9 +1042,17 @@ document.addEventListener('keydown',e=>{
     case 'Escape':if(isPractice)exitPractice();break;
   }
 });
-const DAS_DEL=170,DAS_REP=50;let dasT=null;
-function startDAS(fn){fn();clearTimeout(dasT);clearInterval(dasT);dasT=setTimeout(()=>{dasT=setInterval(()=>{if(isPlaying)fn();},DAS_REP);},DAS_DEL);}
-function stopDAS(){clearTimeout(dasT);clearInterval(dasT);dasT=null;}
+const DAS_DEL=170,DAS_REP=50;let dasT=null,currentDASFn=null;
+function startDAS(fn){
+  currentDASFn=fn;
+  fn();clearTimeout(dasT);clearInterval(dasT);
+  dasT=setTimeout(()=>{dasT=setInterval(()=>{if(isPlaying)fn();},DAS_REP);},DAS_DEL);
+}
+function stopDAS(fn){
+  if(!fn||currentDASFn===fn){
+    clearTimeout(dasT);clearInterval(dasT);dasT=null;currentDASFn=null;
+  }
+}
 
 /* ════ 유틸 ════ */
 function escHtml(s){return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
