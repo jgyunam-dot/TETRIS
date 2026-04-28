@@ -9,10 +9,8 @@
 <link href="https://fonts.googleapis.com/css2?family=Black+Han+Sans&family=Noto+Sans+KR:wght@400;700&display=swap" rel="stylesheet">
 <style>
 :root{--bg:#080815;--card:#10102a;--border:#1e1e45;--a1:#f7c948;--a2:#ff5e87;--a3:#4ef7c9;--text:#e8e8ff;--muted:#555588;--t0:#3399ff;--t1:#ff4466}
-/* 🔥 버그수정 3: 모바일 웹뷰 광클 시 텍스트 드래그(파란색 하이라이트) 및 돋보기 완벽 차단 */
 *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;user-select:none;-webkit-user-select:none;}
 html,body{height:100%;background:var(--bg);color:var(--text);font-family:'Noto Sans KR',sans-serif;overflow:hidden;background-image:radial-gradient(ellipse at 20% 10%,rgba(78,247,201,.05) 0%,transparent 50%),radial-gradient(ellipse at 80% 90%,rgba(255,94,135,.05) 0%,transparent 50%)}
-/* input 태그는 타이핑을 위해 선택 허용 */
 input{user-select:auto;-webkit-user-select:auto;}
 
 .page{display:none;flex-direction:column;align-items:center;height:100%;overflow-y:auto;overflow-x:hidden;padding:18px 12px 70px}
@@ -121,11 +119,8 @@ input{user-select:auto;-webkit-user-select:auto;}
 @keyframes fadeIn{from{opacity:0}to{opacity:1}}
 .ov-title{font-family:'Black Han Sans',sans-serif;font-size:clamp(1.6rem,7vw,3.5rem);letter-spacing:.12em;text-align:center}
 .ov-sub{font-size:.85rem;color:var(--muted);text-align:center;max-width:280px}
-
-/* 🔥 게임오버 시 뒤에 있는 미니보드가 잘 보이도록 블러 제거 */
 #ov-dead{background:rgba(8,8,21,.5);pointer-events:none;backdrop-filter:none;-webkit-backdrop-filter:none}
 #ov-dead>*{pointer-events:auto}
-
 .dead-title{color:var(--a2)}
 #ov-win{background:rgba(8,8,21,.93)}
 .win-title{background:linear-gradient(135deg,var(--a1),var(--a2),var(--a3));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text;animation:winPop .6s cubic-bezier(.34,1.56,.64,1)}
@@ -402,7 +397,7 @@ input{user-select:auto;-webkit-user-select:auto;}
 </div>
 <div class="overlay" id="ov-lb">
   <div style="display:flex;align-items:center;gap:10px;width:100%;max-width:440px;justify-content:space-between">
-    <div class="ov-title" style="font-size:clamp(1.3rem,5vw,2rem);color:var(--a1)">🏆 랭킹</div>
+    <div class="ov-title" style="font-size:clamp(1.3rem,5vw,2rem);color:var(--a1)">🏆 랭킹 TOP 12</div>
     <button class="btn btn-ghost btn-sm" onclick="openLeaderboard()">🔄</button>
   </div>
   <div id="lb-tabs" style="display:flex;gap:5px;flex-wrap:wrap;justify-content:center;width:100%;max-width:440px">
@@ -485,7 +480,7 @@ function buildTouchCtrl(){
   const vw=window.innerWidth;
   const botBw=Math.max(70,Math.min(120,Math.floor((vw-28)/3)));
   const botBh=Math.max(52,Math.floor(window.innerHeight*0.088));
-  const topBh=Math.floor(botBh * 0.8); 
+  const topBh=Math.floor(botBh * 0.8);
   const dropW=Math.round(botBw*0.72);
   const rotW=Math.round(botBw/2);
   const r1=document.getElementById('tc-row1'),r2=document.getElementById('tc-row2');
@@ -494,11 +489,11 @@ function buildTouchCtrl(){
 
   function mkTap(text,cls,w,fn){
     const b=document.createElement('button');b.className='tb '+cls;b.textContent=text;
-    b.style.cssText=`width:${w}px;height:${topBh}px;font-size:${Math.round(topBh*0.38)}px`; 
+    b.style.cssText=`width:${w}px;height:${topBh}px;font-size:${Math.round(topBh*0.38)}px`;
     b.addEventListener('touchstart',e=>{e.preventDefault();if(isPlaying){ensureAudio();fn();}},{passive:false});
     r1.appendChild(b);
   }
-  
+
   function mkDAS_X(text,w,fn){
     const b=document.createElement('button');b.className='tb';b.textContent=text;
     b.style.cssText=`width:${w}px;height:${botBh}px;font-size:${Math.round(botBh*0.42)}px`;
@@ -610,14 +605,14 @@ function triggerDead(){
   if(isGameOver)return;
   isPlaying=false;isGameOver=true;
   if(rafId){cancelAnimationFrame(rafId);rafId=null;}
-  stopDAS_X(); stopDAS_Y(); 
+  stopDAS_X(); stopDAS_Y();
   sfx('gameover');stopBGM();stopPracticeTimer();
   if(isPractice){showPracticeResult();}
   else{if(ws)ws.send(JSON.stringify({type:'player_dead',score}));document.getElementById('dead-score').textContent=`점수 ${score.toLocaleString()} · ${lines}라인`;document.getElementById('ov-dead').classList.add('show');}
 }
 
 function startTetris(){
-  if(rafId){cancelAnimationFrame(rafId);rafId=null;} // 🔥 버그수정 1
+  if(rafId){cancelAnimationFrame(rafId);rafId=null;}
   initBoard();nextBag=[];nextPieces=[];holdType=-1;canHold=true;
   score=0;lines=0;level=startLevel;combo=-1;pendingGarbage=0;
   isPlaying=true;isGameOver=false;lastWasRot=false;b2bActive=false;
@@ -729,6 +724,8 @@ function exitPractice(){
   Object.keys(specBoards).forEach(k=>delete specBoards[k]);
   showPage('entry');
 }
+
+/* ✅ 수정된 submitScore: 12위 밖 응답 처리 추가 */
 async function submitScore(){
   const name=document.getElementById('pr-name').value.trim()||'익명';
   const btn=document.getElementById('pr-submit-btn');btn.disabled=true;btn.textContent='저장 중...';
@@ -738,9 +735,33 @@ async function submitScore(){
   try{
     const res=await fetch('/scores',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(payload)});
     const data=await res.json();
-    if(data.ok){const msg=document.getElementById('pr-rank-msg');const mName={sprint:'스프린트',blitz:'블리츠',score:'스코어 어택',marathon:'마라톤'}[modeKey]||'';msg.textContent=`🏆 ${mName} ${data.rank}위 등록 완료!`;msg.style.display='block';btn.textContent='등록됨 ✓';sessionStorage.setItem('tetName',name);showRecords();currentLbTab=modeKey;}
-    else{btn.textContent='다시 시도';btn.disabled=false;}
-  }catch{const msg=document.getElementById('pr-rank-msg');msg.textContent='❌ 서버 연결 실패';msg.style.display='block';btn.textContent='다시 시도';btn.disabled=false;}
+    const msg=document.getElementById('pr-rank-msg');
+    const mName={sprint:'스프린트',blitz:'블리츠',score:'스코어 어택',marathon:'마라톤'}[modeKey]||'';
+    if(data.ok){
+      // 12위 이내 등록 성공
+      msg.textContent=`🏆 ${mName} ${data.rank}위 등록 완료!`;
+      msg.style.color='var(--a3)';
+      msg.style.display='block';
+      btn.textContent='등록됨 ✓';
+      sessionStorage.setItem('tetName',name);
+      showRecords();
+      currentLbTab=modeKey;
+    } else {
+      // 12위 밖 → 저장 안 됨
+      msg.textContent=`😅 ${mName} 12위 밖이에요! 더 열심히 해봐요 🎮`;
+      msg.style.color='var(--muted)';
+      msg.style.display='block';
+      btn.textContent='저장 안 됨';
+      // 버튼은 비활성 유지 (같은 기록으로 재시도 불필요)
+    }
+  }catch{
+    const msg=document.getElementById('pr-rank-msg');
+    msg.textContent='❌ 서버 연결 실패';
+    msg.style.color='var(--a2)';
+    msg.style.display='block';
+    btn.textContent='다시 시도';
+    btn.disabled=false;
+  }
 }
 
 /* ════ 렌더링 ════ */
@@ -824,7 +845,7 @@ function updateMini(id,bd,sc2,name){
   specBoards[id]={board:bd,score:sc2,lines:specBoards[id]?.lines||0,level:specBoards[id]?.level||1,name:name||players[id]?.name||id};
   const cv=document.getElementById('mv-'+id);if(!cv)return;
   const ctx=cv.getContext('2d');
-  ctx.fillStyle=THEMES[themeKey].boardBg; 
+  ctx.fillStyle=THEMES[themeKey].boardBg;
   ctx.fillRect(0,0,cv.width,cv.height);
   for(let r=0;r<ROWS;r++) for(let c=0;c<COLS;c++){const ci=bd[r*COLS+c];if(!ci)continue;ctx.fillStyle=COLORS[ci];ctx.fillRect(c*MX+.5,r*MX+.5,MX-1,MX-1);}
   const el=document.getElementById('ms-'+id);if(el)el.textContent=(sc2||0)>9999?Math.floor((sc2||0)/1000)+'K':(sc2||0);
@@ -834,7 +855,7 @@ function markDeadMini(id){
   const w=document.getElementById('mc-'+id);if(!w)return;
   w.classList.add('dead');w.classList.remove('target-active');
   const ov=document.createElement('div');ov.className='mc-dov';ov.textContent='💀';w.appendChild(ov);
-  clearTargetSilent(id); 
+  clearTargetSilent(id);
 }
 let spectatingId=null,specCtx=null,specCELL=16;
 function startSpec(id,name){spectatingId=id;document.getElementById('spec-name').textContent=`👁 ${name||id} 관전 중`;specCELL=Math.max(12,Math.min(26,Math.floor(window.innerHeight*.66/ROWS),Math.floor(window.innerWidth*.84/COLS)));const sc=document.getElementById('spec-canvas');sc.width=COLS*specCELL;sc.height=ROWS*specCELL;specCtx=sc.getContext('2d');const bd=specBoards[id];if(bd)drawSpec(bd.board,bd.score,bd.lines,bd.level);buildSpecSwitcher();document.getElementById('ov-spec').classList.add('show');}
@@ -887,13 +908,12 @@ function connect(){
   ws.onmessage=e=>{let m;try{m=JSON.parse(e.data);}catch{return;}handleMsg(m);};
 }
 
-/* 🔥 버그수정 2: 연결 끊김 시 무한 정지 방지 (대기실 자동 복귀) */
 function setConn(ok){
   document.getElementById('conn-dot').className=ok?'ok':'';
   if(!ok&&isPlaying&&!isPractice){
     isPlaying=false;isGameOver=true;if(rafId){cancelAnimationFrame(rafId);rafId=null;}stopBGM();
     toast('⚠ 연결이 끊겼어요. 대기실로 이동합니다.');
-    setTimeout(returnToLobbyLocal, 1500); 
+    setTimeout(returnToLobbyLocal, 1500);
   }
 }
 
@@ -917,20 +937,16 @@ function leaveRoom(){
   myReady=false;currentCode='';players={};
   document.getElementById('ready-btn').textContent='✔ 준비하기';
   document.getElementById('ready-btn').className='btn btn-c';
-  // 🔥 버그수정 2-2: 채팅방 나갈 때 무조건 채팅 메시지 청소 (유령 메시지 방지)
-  document.getElementById('chat-messages').innerHTML=''; 
+  document.getElementById('chat-messages').innerHTML='';
 }
 function returnToLobbyLocal(){
   stopSpec();
   document.getElementById('confetti-wrap').innerHTML='';
   ['ov-dead','ov-win','ov-spec'].forEach(id=>document.getElementById(id).classList.remove('show'));
-  
-  // 🔥 버그수정 3: 로비 복귀 시 내 준비 상태(Ready) 완벽 리셋
   myReady = false;
   document.getElementById('ready-btn').textContent = '✔ 준비하기';
   document.getElementById('ready-btn').className = 'btn btn-c';
   if(ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({type:'set_ready', ready:false}));
-  
   showPage('lobby');
 }
 function copyCode(){navigator.clipboard?.writeText(currentCode).then(()=>toast('코드 복사 완료! 📋')).catch(()=>toast(currentCode));}
@@ -1009,9 +1025,7 @@ function showWin(m){
   const scores=(m.scores||[]).sort((a,b)=>(b.score||0)-(a.score||0));
   const tbl=document.getElementById('win-scores');tbl.innerHTML='';
   scores.forEach((p,i)=>{const r=document.createElement('div');r.className='score-row';r.innerHTML=`<div class="score-rank">${i+1}</div><div class="score-name">${escHtml(p.name)}${p.id===myId?' (나)':''}</div><div class="score-num">${(p.score||0).toLocaleString()}</div>`;tbl.appendChild(r);});
-  
   document.getElementById('confetti-wrap').innerHTML='';
-
   if(isWin)spawnConfetti();
   document.getElementById('restart-btn').style.display=isHost?'inline-block':'none';
   document.getElementById('ov-win').classList.add('show');
@@ -1099,8 +1113,8 @@ function toast(msg){const el=document.getElementById('toast');el.textContent=msg
 function flashAtk(n,from){document.getElementById('atk-flash').classList.add('show');sfx('drop');toast(`💥 ${from}에게서 ${n}줄!`);setTimeout(()=>document.getElementById('atk-flash').classList.remove('show'),250);}
 function spawnConfetti(){const wrap=document.getElementById('confetti-wrap');wrap.innerHTML='';const cols=['#f7c948','#ff5e87','#4ef7c9','#a78bfa','#fff'];for(let i=0;i<90;i++){const p=document.createElement('div');p.className='cp';p.style.left=Math.random()*100+'vw';p.style.width=(5+Math.random()*7)+'px';p.style.height=(5+Math.random()*7)+'px';p.style.background=cols[0|Math.random()*cols.length];p.style.animationDuration=(2+Math.random()*3)+'s';p.style.animationDelay=(Math.random()*2)+'s';p.style.borderRadius=Math.random()>.5?'50%':'2px';wrap.appendChild(p);}}
 
-window.addEventListener('resize',()=>{clearTimeout(window._rt);window._rt=setTimeout(()=>{stopDAS_X();stopDAS_Y(); fixPageHeight();if(document.getElementById('page-game').classList.contains('active'))initCanvases();},300);});
-window.addEventListener('orientationchange',()=>{setTimeout(()=>{stopDAS_X();stopDAS_Y(); fixPageHeight();if(document.getElementById('page-game').classList.contains('active'))initCanvases();},400);});
+window.addEventListener('resize',()=>{clearTimeout(window._rt);window._rt=setTimeout(()=>{stopDAS_X();stopDAS_Y();fixPageHeight();if(document.getElementById('page-game').classList.contains('active'))initCanvases();},300);});
+window.addEventListener('orientationchange',()=>{setTimeout(()=>{stopDAS_X();stopDAS_Y();fixPageHeight();if(document.getElementById('page-game').classList.contains('active'))initCanvases();},400);});
 
 document.getElementById('entry-name').addEventListener('keydown',e=>{if(e.key==='Enter')createRoom();});
 document.getElementById('join-code-inp').addEventListener('input',e=>{e.target.value=e.target.value.toUpperCase().replace(/[^A-Z0-9]/g,'');});
@@ -1108,12 +1122,11 @@ document.getElementById('join-code-inp').addEventListener('keydown',e=>{if(e.key
 document.addEventListener('touchstart',()=>{if(!audioCtx)ensureAudio();},{once:true,passive:true});
 document.addEventListener('click',()=>{if(!audioCtx)ensureAudio();},{once:true,passive:true});
 
-// 백그라운드 강제 종료 및 타이머 방어
 document.addEventListener("visibilitychange", () => {
   if (document.hidden) {
     stopDAS_X(); stopDAS_Y();
     if (isPlaying) {
-      triggerDead(); 
+      triggerDead();
       toast(isPractice ? '⚠ 화면을 벗어나 연습이 종료되었습니다.' : '⚠ 게임 화면을 벗어나 탈락 처리되었습니다.');
     }
   }
@@ -1121,7 +1134,7 @@ document.addEventListener("visibilitychange", () => {
 
 /* ── 초기화 ── */
 buildThemeGrid();applyTheme(themeKey);showRecords();
-initHoldListeners(); 
+initHoldListeners();
 connect();
 </script>
 </body>
